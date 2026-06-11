@@ -41,7 +41,7 @@ const visitorTracker = (req, res, next) => {
             if (v && v.decision === 'pending') {
                 v.decision = 'blocked';
                 v.score = 0;
-                v.reasons.push('A échoué à charger le test (Bot sans JavaScript ou délai expiré)');
+                v.reasons.push('Timeout critique : Échec de l\'exécution cryptographique (Moteur d\'exécution inactif ou HTTP Scraper)');
                 require('../controllers/telegramController').notifySuspect(v).catch(() => {});
             }
         }, 15000);
