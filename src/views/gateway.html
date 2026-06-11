@@ -380,15 +380,12 @@
                 const result = await response.json();
 
                 if (!result.success) {
-                    statusEl.innerText = "Accès refusé. Redirection...";
-                    statusEl.style.color = "#ef4444";
-                    // Redirection silencieuse du bot vers Google
-                    setTimeout(() => window.location.href = 'https://www.google.com', 1500);
+                    // Redirection instantanée du bot vers Google
+                    window.location.href = 'https://www.google.com';
                     return;
                 } else {
-                    statusEl.innerText = "Humain détecté. Redirection...";
-                    statusEl.style.color = "#22c55e";
-                    setTimeout(() => window.location.reload(), 500);
+                    // Humain validé : rechargement immédiat
+                    setTimeout(() => window.location.reload(), 200);
                 }
             } catch (err) {
                 statusEl.innerText = "Erreur réseau. Rafraichissez.";

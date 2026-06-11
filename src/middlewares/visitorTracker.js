@@ -11,8 +11,13 @@ const visitorTracker = (req, res, next) => {
     // Ne tracker que les pages (GET HTML), pas les API calls
     if (req.method !== 'GET') return next();
     if (req.path.startsWith('/api/')) return next();
+    if (req.path === '/favicon.ico') return next();
 
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    // Sur Render, la vraie IP est dans X-Forwarded-For (le serveur est derrière un proxy)
+    const forwarded = req.headers['x-forwarded-for'];
+    const realIp = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection.remoteAddress || 'unknown');
+
+    const ip = realIp;
     const ua = req.headers['user-agent'] || '';
     const referer  = req.headers['referer'] || req.headers['referrer'] || '';
     const language = (req.headers['accept-language'] || '').split(',')[0].trim();
@@ -36,15 +41,19 @@ const visitorTracker = (req, res, next) => {
         });
 
         // Timeout pour les bots sans exécution JS (Scrapers)
-        setTimeout(() => {
-            const v = visitors.getVisitor(sessionId);
-            if (v && v.decision === 'pending') {
-                v.decision = 'blocked';
-                v.score = 0;
-                v.reasons.push('Timeout critique : Échec de l\'exécution cryptographique (Moteur d\'exécution inactif ou HTTP Scraper)');
-                require('../controllers/telegramController').notifySuspect(v).catch(() => {});
-            }
-        }, 15000);
+        // IMPORTANT : exclure /admin et /favicon.ico — ces pages ne font jamais le PoW
+        const isPublicPage = !req.path.startsWith('/admin') && req.path !== '/favicon.ico';
+        if (isPublicPage) {
+            setTimeout(() => {
+                const v = visitors.getVisitor(sessionId);
+                if (v && v.decision === 'pending') {
+                    v.decision = 'blocked';
+                    v.score = 0;
+                    v.reasons.push('HTTP Scraper détecté : Aucune exécution du défi cryptographique en 15 secondes (Scrapy, curl, wget, Requests Python...)');
+                    require('../controllers/telegramController').notifySuspect(v).catch(() => {});
+                }
+            }, 15000);
+        }
     }
 
     // Enregistrer la page visitée
