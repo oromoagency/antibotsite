@@ -23,35 +23,41 @@ const sendMessage = async (text) => {
     }
 };
 
+// --- Échappement HTML sécurisé pour Telegram ---
+const escapeHtml = (text) => {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+};
+
 // --- Notification d'un visiteur suspect/bloqué/autorisé ---
 const notifySuspect = async (visitor) => {
     if (!visitor) return;
     
-    // Le code suivant a été retiré pour envoyer l'alerte à TOUT LE MONDE :
-    // if (visitor.score >= 70 && visitor.decision === 'allowed') return;
-
     const emoji = visitor.decision === 'blocked' ? '🚫'
                 : visitor.decision === 'suspect' ? '⚠️' : 'ℹ️';
 
     const duration = Math.round((Date.now() - visitor.startTime) / 1000);
-    const pages    = visitor.pages.map(p => p.url).join(', ') || 'aucune';
-    const reasons  = visitor.reasons.join('\n  - ') || 'aucune';
+    const pages    = escapeHtml(visitor.pages.map(p => p.url).join(', ') || 'aucune');
+    const reasons  = escapeHtml(visitor.reasons.join('\n  - ') || 'aucune');
+    const safeUa   = escapeHtml((visitor.userAgent || '').slice(0, 100));
 
     const msg = `${emoji} <b>Visiteur ${visitor.decision.toUpperCase()}</b>
 
 🔍 <b>Identité</b>
-  IP : <code>${visitor.ip}</code>
-  Pays : ${visitor.country || '?'} ${visitor.countryCode || ''} — ${visitor.city || ''}, ${visitor.region || ''}
-  ASN : ${visitor.asn || '?'}
-  ISP : ${visitor.isp || '?'}
+  IP : <code>${escapeHtml(visitor.ip)}</code>
+  Pays : ${escapeHtml(visitor.country || '?')} ${escapeHtml(visitor.countryCode || '')} — ${escapeHtml(visitor.city || '')}, ${escapeHtml(visitor.region || '')}
+  ASN : ${escapeHtml(visitor.asn || '?')}
+  ISP : ${escapeHtml(visitor.isp || '?')}
 
 💻 <b>Environnement</b>
-  Navigateur : ${visitor.browser} — ${visitor.os}
-  UA : <code>${(visitor.userAgent || '').slice(0, 100)}</code>
-  Langue : ${visitor.language || '?'}
-  Écran : ${visitor.screen || '?'}
-  Fuseau : ${visitor.timezone || '?'}
-  Cookies : ${visitor.cookiesEnabled ?? '?'} | LocalStorage : ${visitor.localStorageAvailable ?? '?'}
+  Navigateur : ${escapeHtml(visitor.browser)} — ${escapeHtml(visitor.os)}
+  UA : <code>${safeUa}</code>
+  Langue : ${escapeHtml(visitor.language || '?')}
+  Écran : ${escapeHtml(visitor.screen || '?')}
+  Fuseau : ${escapeHtml(visitor.timezone || '?')}
 
 🎯 <b>Score anti-bot : ${visitor.score}/100</b>
   Décision : ${visitor.decision}
@@ -62,10 +68,8 @@ const notifySuspect = async (visitor) => {
   Durée session : ${duration}s
   Pages visitées : ${pages}
   Clics : ${visitor.clicks} | Scrolls : ${visitor.scrolls}
-  Formulaires : ${visitor.formSubmissions} | Tentatives login : ${visitor.loginAttempts}
-  Erreurs JS : ${visitor.jsErrors}
 
-🔗 Référent : ${visitor.referer || 'direct'}
+🔗 Référent : ${escapeHtml(visitor.referer || 'direct')}
 ⏰ ${new Date(visitor.startTime).toISOString()}`;
 
     await sendMessage(msg);

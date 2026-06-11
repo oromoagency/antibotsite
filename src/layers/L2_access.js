@@ -72,6 +72,9 @@ const middleware = (req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress;
     if (reputation.isBanned(ip)) {
         console.log(`[L2_ACCESS] IP bannie temporairement: ${ip}`);
+        if (req.method === 'GET' && !req.path.startsWith('/api')) {
+            return res.redirect('https://www.google.com');
+        }
         return res.status(403).send('Forbidden.');
     }
     next();

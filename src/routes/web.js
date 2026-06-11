@@ -13,7 +13,7 @@ router.use(visitorTracker);
 // Aucun bot ne verra le code des pages suivantes s'il ne passe pas ce test.
 const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW pour y accéder facilement
-    if (req.path === '/admin') return next();
+    if (req.path.startsWith('/admin')) return next();
 
     const result = L7_session.verifyToken(req.cookies['human_auth_token']);
     if (!result.valid) {
