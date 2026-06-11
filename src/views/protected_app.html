@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen Crypto Wallet - Exclusive Airdrop</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-dark: #0f172a;
+            --text-light: #f8fafc;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.15), transparent 25%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Honeypot / Invisible links for crawlers */
+        .crawler-trap {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        header {
+            width: 100%;
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            border-bottom: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            max-width: 1200px;
+            padding: 4rem 2rem;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        h1 span {
+            color: var(--primary);
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            max-width: 600px;
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        .form-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.1s ease;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .features {
+            display: flex;
+            gap: 2rem;
+            margin-top: 4rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .feature-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            width: 250px;
+            text-align: left;
+        }
+
+        .feature-card h3 {
+            margin-top: 0;
+            color: #e2e8f0;
+        }
+
+        .feature-card p {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin-bottom: 0;
+        }
+
+        /* Fake attractive elements for bots */
+        .api-docs-link {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #475569;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Honeypot Links for Crawlers -->
+    <a href="/api/v1/auth/admin-bypass" class="crawler-trap">Admin Access</a>
+    <a href="/wp-login.php" class="crawler-trap">WP Login</a>
+    <form action="/api/v1/debug/sql" method="POST" class="crawler-trap">
+        <input type="text" name="query" value="SELECT * FROM users">
+        <button type="submit">Execute</button>
+    </form>
+
+    <header>
+        <div class="logo">NexGen Wallet</div>
+        <nav>
+            <a href="#" style="color: white; text-decoration: none; margin-right: 1.5rem;">Ecosystem</a>
+            <a href="#" style="color: white; text-decoration: none;">Governance</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Claim your <span>TRC-20 Airdrop</span></h1>
+        <p class="subtitle">Join the next generation of decentralized finance. Register your wallet address to claim 500 NGT tokens instantly. Limited time offer.</p>
+
+        <div class="form-container">
+            <!-- Tracking Script will monitor form interactions -->
+            <form id="airdropForm">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="john@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wallet">TRON Wallet Address (TRC-20)</label>
+                    <input type="text" id="wallet" name="wallet" placeholder="T..." required>
+                </div>
+
+                <!-- Honeypot field (hidden from users, bots will fill it) -->
+                <div style="opacity: 0; position: absolute; top: -100px; left: -100px;">
+                    <label for="phone_backup">Phone Backup</label>
+                    <input type="text" id="phone_backup" name="phone_backup" autocomplete="off" tabindex="-1">
+                </div>
+
+                <button type="submit" class="btn-submit" id="claimBtn">Claim Airdrop Now</button>
+            </form>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>Zero Fees</h3>
+                <p>Execute TRC-20 transactions with absolutely zero network fees through our meta-tx relayer.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Institutional Security</h3>
+                <p>Secured by MPC cryptography and our state-of-the-art DataShield firewall.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Instant Liquidity</h3>
+                <p>Swap tokens instantly across 14 different blockchains using our cross-chain router.</p>
+            </div>
+        </div>
+
+        <div class="api-docs-link">View Developer API Documentation</div>
+    </main>
+
+    <script>
+        // Track basic actions for Telegram Logging (To be connected to backend)
+        const tracker = {
+            actions: [],
+            startTime: Date.now()
+        };
+
+        document.addEventListener('click', (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'A') {
+                tracker.actions.push(`Clicked: ${e.target.innerText || e.target.id}`);
+            }
+        });
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                tracker.actions.push(`Filled field: ${e.target.name}`);
+            });
+        });
+
+        document.getElementById('airdropForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const timeSpent = Math.round((Date.now() - tracker.startTime) / 1000);
+            tracker.actions.push(`Form Submitted. Time spent: ${timeSpent}s`);
+            
+            // This is where we will send the data to the backend to be pushed to Telegram
+            console.log("Telemetry Payload:", tracker);
+            
+            const btn = document.getElementById('claimBtn');
+            btn.innerText = 'Processing...';
+            btn.style.backgroundColor = '#475569';
+            
+            setTimeout(() => {
+                alert("Request received. Awaiting validation.");
+                btn.innerText = 'Claim Airdrop Now';
+                btn.style.backgroundColor = 'var(--primary)';
+            }, 1500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antibot — Tableau de bord</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
+            padding: 2rem;
+        }
+        h1 { font-size: 1.4rem; margin: 0 0 1.5rem 0; }
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
+        .stat-label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+        .badge { display: inline-block; padding: 0.35rem 1rem; border-radius: 999px; font-weight: 700; font-size: 1rem; }
+        .badge.CALME     { background: #14532d; color: #4ade80; }
+        .badge.VIGILANCE { background: #713f12; color: #fbbf24; }
+        .badge.ATTAQUE   { background: #7f1d1d; color: #f87171; }
+        .pass  { color: #4ade80; }
+        .block { color: #fbbf24; }
+        .ban   { color: #f87171; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        th { color: #94a3b8; font-weight: 600; }
+        input {
+            padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid #334155;
+            background: #020617; color: #f8fafc; width: 320px; max-width: 100%;
+        }
+        button {
+            padding: 0.5rem 1rem; border-radius: 0.5rem; border: none;
+            background: #3b82f6; color: white; font-weight: 600; cursor: pointer; margin-left: 0.5rem;
+        }
+        #error { color: #f87171; margin-top: 0.5rem; font-size: 0.85rem; }
+        #updated { color: #64748b; font-size: 0.75rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>Antibot — état global</h1>
+
+    <div class="card" id="auth-card">
+        <div class="stat-label" style="margin-bottom: 0.5rem;">Jeton administrateur (affiché au démarrage du serveur)</div>
+        <input type="password" id="token" placeholder="x-admin-token">
+        <button onclick="saveToken()">Connecter</button>
+        <div id="error"></div>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+        <div class="card">
+            <span class="stat-label">Posture de la flotte</span><br><br>
+            <span class="badge" id="posture">—</span>
+            <span style="margin-left: 1.5rem;" class="stat-label">Difficulté PoW : </span>
+            <strong id="difficulty">—</strong>
+        </div>
+
+        <div class="card">
+            <div class="stat-label" style="margin-bottom: 0.75rem;">Fenêtre 5 minutes</div>
+            <div class="grid">
+                <div><div class="stat-label">Total</div><div class="stat-value" id="w-total">0</div></div>
+                <div><div class="stat-label">Humains</div><div class="stat-value pass" id="w-pass">0</div></div>
+                <div><div class="stat-label">Refus</div><div class="stat-value block" id="w-block">0</div></div>
+                <div><div class="stat-label">Bans</div><div class="stat-value ban" id="w-ban">0</div></div>
+                <div><div class="stat-label">Fatals (PoW)</div><div class="stat-value ban" id="w-fatal">0</div></div>
+                <div><div class="stat-label">IPs hostiles</div><div class="stat-value" id="w-ips">0</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-label" style="margin-bottom: 0.75rem;">Raisons dominantes (1 h)</div>
+            <table>
+                <thead><tr><th>Raison</th><th style="width:80px;">Occurrences</th></tr></thead>
+                <tbody id="reasons"><tr><td colspan="2">—</td></tr></tbody>
+            </table>
+        </div>
+
+        <div id="updated">—</div>
+    </div>
+
+    <script>
+        let token = sessionStorage.getItem('admin_token') || '';
+        let timer = null;
+
+        function saveToken() {
+            token = document.getElementById('token').value.trim();
+            sessionStorage.setItem('admin_token', token);
+            refresh();
+        }
+
+        async function refresh() {
+            if (!token) return;
+            try {
+                const res = await fetch('/api/admin/stats', { headers: { 'x-admin-token': token } });
+                if (res.status === 401) {
+                    document.getElementById('error').textContent = 'Jeton refusé.';
+                    document.getElementById('dashboard').style.display = 'none';
+                    return;
+                }
+                const s = await res.json();
+                document.getElementById('error').textContent = '';
+                document.getElementById('dashboard').style.display = '';
+
+                const badge = document.getElementById('posture');
+                badge.textContent = s.posture;
+                badge.className = 'badge ' + s.posture;
+                document.getElementById('difficulty').textContent = s.difficulty;
+
+                const w = s.window5min;
+                document.getElementById('w-total').textContent = w.total;
+                document.getElementById('w-pass').textContent = w.pass;
+                document.getElementById('w-block').textContent = w.block;
+                document.getElementById('w-ban').textContent = w.ban;
+                document.getElementById('w-fatal').textContent = w.fatal;
+                document.getElementById('w-ips').textContent = w.hostileIps;
+
+                const tbody = document.getElementById('reasons');
+                const rows = (s.lastHour.topReasons || []).map(r =>
+                    `<tr><td>${r.reason.replace(/</g, '&lt;')}</td><td>${r.count}</td></tr>`);
+                tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2">Aucun événement hostile.</td></tr>';
+
+                document.getElementById('updated').textContent =
+                    'Actualisé : ' + new Date().toLocaleTimeString() + ' — ' + s.eventsStored + ' événements en mémoire';
+
+                if (!timer) timer = setInterval(refresh, 5000);
+            } catch (e) {
+                document.getElementById('error').textContent = 'Erreur réseau.';
+            }
+        }
+
+        if (token) { document.getElementById('token').value = token; refresh(); }
+    </script>
+</body>
+</html>
