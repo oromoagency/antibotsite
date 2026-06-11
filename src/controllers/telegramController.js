@@ -23,11 +23,12 @@ const sendMessage = async (text) => {
     }
 };
 
-// --- Notification d'un visiteur suspect/bloqué ---
+// --- Notification d'un visiteur suspect/bloqué/autorisé ---
 const notifySuspect = async (visitor) => {
     if (!visitor) return;
-    // N'envoyer que si score < 70 ou décision non-autorisée
-    if (visitor.score >= 70 && visitor.decision === 'allowed') return;
+    
+    // Le code suivant a été retiré pour envoyer l'alerte à TOUT LE MONDE :
+    // if (visitor.score >= 70 && visitor.decision === 'allowed') return;
 
     const emoji = visitor.decision === 'blocked' ? '🚫'
                 : visitor.decision === 'suspect' ? '⚠️' : 'ℹ️';

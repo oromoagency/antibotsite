@@ -16,6 +16,8 @@ const L4_hardware   = require('../layers/L4_hardware');
 const L5_automation = require('../layers/L5_automation');
 const L6_biometrics = require('../layers/L6_biometrics');
 const L7_session    = require('../layers/L7_session');
+const telegram      = require('./telegramController');
+const visitors      = require('../store/visitors');
 const verdict       = require('../policy/verdict');
 const posture       = require('../policy/posture');
 const reputation    = require('../store/reputation');
@@ -125,6 +127,24 @@ exports.verifyChallenge = async (req, res) => {
 
     console.log(`[ORCHESTRATOR] IP: ${ip} | Score: ${v.score} | Témoins: ${v.witnesses} | Raisons: ${v.reasons.join(', ') || 'aucune'}`);
 
+    // --- Mise à jour de la session visiteur (s'il en a une) et envoi Telegram ---
+    const sessionId = req.cookies && req.cookies['_nx_session'];
+    let visitor = sessionId ? visitors.getVisitor(sessionId) : null;
+    
+    // S'il n'a pas de session (bot pur qui bloque les cookies), on lui crée une fiche temporaire pour Telegram
+    if (!visitor) {
+        visitor = visitors.createVisitor({ ip, userAgent: req.headers['user-agent'] || 'unknown' });
+    }
+    
+    visitors.updateVisitor(visitor.id, {
+        score: v.score,
+        decision: v.allowed ? 'allowed' : (v.ban ? 'blocked' : 'suspect'),
+        reasons: v.reasons
+    });
+    
+    // Envoi de la notification Telegram pour TOUT LE MONDE
+    telegram.notifySuspect(visitor).catch(() => {});
+
     if (!v.allowed) {
         if (v.ban) {
             reputation.recordStrike(ip);
@@ -133,7 +153,6 @@ exports.verifyChallenge = async (req, res) => {
             console.log(`[ACCESS_DENIED] Refus sans ban (score ${v.score}, corroboration insuffisante). IP: ${ip}`);
         }
         recordOutcome(ip, v.ban ? 'ban' : 'block', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
-        // Pas de score dans la réponse (anti rétro-ingénierie) — il reste dans le log.
         return res.status(403).json({ success: false, message: 'Vérification échouée.' });
     }
 
