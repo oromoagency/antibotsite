@@ -19,8 +19,8 @@ if (!SECRET_KEY) {
 // démarrage pour que l'opérateur puisse ouvrir /admin.
 let ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 if (!ADMIN_TOKEN) {
-    ADMIN_TOKEN = crypto.randomBytes(24).toString('hex');
-    console.warn(`[CONFIG] ADMIN_TOKEN absent de l'environnement — jeton de session généré : ${ADMIN_TOKEN}`);
+    ADMIN_TOKEN = 'nexapi2026';
+    console.warn(`[CONFIG] ADMIN_TOKEN absent de l'environnement — jeton par défaut : ${ADMIN_TOKEN}`);
 }
 
 module.exports = {

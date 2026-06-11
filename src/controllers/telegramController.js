@@ -105,4 +105,15 @@ const sendReport = async (req, res) => {
     res.json({ ok, message: ok ? 'Rapport envoyé.' : 'Erreur Telegram.' });
 };
 
-module.exports = { sendMessage, notifySuspect, sendReport };
+// --- Notification d'activité importante ---
+const notifyActivity = async (visitor, actionLabel, detailText) => {
+    if (!visitor) return;
+    const msg = `🔔 <b>Activité Importante : ${escapeHtml(actionLabel)}</b>
+    
+👤 <b>Visiteur</b> : <code>${escapeHtml(visitor.ip)}</code>
+Détails : <i>${escapeHtml(detailText)}</i>
+(Score actuel : ${visitor.score})`;
+    await sendMessage(msg);
+};
+
+module.exports = { sendMessage, notifySuspect, sendReport, notifyActivity };

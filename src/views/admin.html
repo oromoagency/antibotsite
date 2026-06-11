@@ -272,7 +272,15 @@
             } catch (e) { alert('Error sending report'); }
         }
 
-        if (token) fetchData();
+        if (token) {
+            fetchData();
+            // Auto-refresh toutes les 5 secondes
+            setInterval(() => {
+                if (document.getElementById('tab-overview').style.display !== 'none') fetchData();
+                if (document.getElementById('tab-visitors').style.display !== 'none') fetchVisitors();
+                if (document.getElementById('tab-logs').style.display !== 'none') fetchLogs();
+            }, 5000);
+        }
     </script>
 </body>
 </html>

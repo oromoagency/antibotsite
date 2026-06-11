@@ -40,7 +40,10 @@ exports.recordEvent = (req, res) => {
             if (v) visitors.updateVisitor(sessionId, { scrolls: v.scrolls + 1 });
             break;
         case 'form_submit':
-            if (v) visitors.updateVisitor(sessionId, { formSubmissions: v.formSubmissions + 1 });
+            if (v) {
+                visitors.updateVisitor(sessionId, { formSubmissions: v.formSubmissions + 1 });
+                telegram.notifyActivity(v, 'Formulaire Soumis', `ID Formulaire: ${data.formId || 'Inconnu'}`).catch(() => {});
+            }
             break;
         case 'login_attempt':
             if (v) visitors.updateVisitor(sessionId, { loginAttempts: v.loginAttempts + 1 });
