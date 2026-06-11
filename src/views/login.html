@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log in to NexAPI Cloud</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --bg: #0a0f1e; --card: rgba(255,255,255,0.03); --border: rgba(255,255,255,0.1); --text: #f8fafc; --text-muted: #94a3b8; --accent: #7c3aed; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .auth-container { background: var(--card); border: 1px solid var(--border); padding: 3rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
+        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(to right, #7c3aed, #2563eb); -webkit-background-clip: text; color: transparent; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.5rem; text-align: left; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-muted); }
+        .form-control { width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; color: white; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: var(--accent); }
+        .btn { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-bottom: 1rem; }
+        .btn-github { background: #24292e; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .links { display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 2rem; }
+        .links a { color: var(--accent); text-decoration: none; }
+        .error { color: #ef4444; font-size: 0.875rem; margin-top: 1rem; display: none; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <a href="/" style="text-decoration: none;"><div class="logo">NexAPI Cloud</div></a>
+        <h2 style="margin-bottom: 2rem;">Welcome back</h2>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Email address</label>
+                <input type="email" name="email" class="form-control" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-control" required autocomplete="current-password">
+            </div>
+            <div class="links">
+                <label><input type="checkbox"> Remember me</label>
+                <a href="#">Forgot password?</a>
+            </div>
+            <button type="submit" class="btn">Sign in</button>
+            <div id="errorMsg" class="error"></div>
+        </form>
+
+        <div style="margin: 1.5rem 0; color: var(--text-muted); font-size: 0.875rem;">OR</div>
+        
+        <button class="btn btn-github" onclick="alert('OAuth login disabled for this demo.')">
+            Sign in with GitHub
+        </button>
+
+        <p style="margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted);">
+            Don't have an account? <a href="/register" style="color: var(--accent); text-decoration: none;">Sign up</a>
+        </p>
+    </div>
+
+    <!-- Tracking Script -->
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const errorDiv = document.getElementById('errorMsg');
+            const email = this.email.value;
+            
+            btn.innerText = 'Signing in...';
+            btn.disabled = true;
+            errorDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password: this.password.value })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || 'Login failed');
+                }
+            } catch (err) {
+                errorDiv.innerText = err.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                btn.innerText = 'Sign in';
+                btn.disabled = false;
+            }
+        });
+
+        // Basic event tracking
+        (function(){
+            const sid = document.cookie.match(/_nx_session=([^;]+)/);
+            const sessionId = sid ? sid[1] : '';
+            document.addEventListener('click', e => {
+                const t = e.target.closest('a,button');
+                if(t) fetch('/api/track/event', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'click',sessionId,data:{element:t.tagName,text:t.innerText}}) }).catch(()=>{});
+            });
+        })();
+    </script>
+</body>
+</html>

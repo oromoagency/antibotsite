@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create NexAPI Cloud Account</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --bg: #0a0f1e; --card: rgba(255,255,255,0.03); --border: rgba(255,255,255,0.1); --text: #f8fafc; --text-muted: #94a3b8; --accent: #7c3aed; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 2rem; box-sizing: border-box; }
+        .auth-container { background: var(--card); border: 1px solid var(--border); padding: 3rem; border-radius: 12px; width: 100%; max-width: 500px; text-align: center; }
+        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(to right, #7c3aed, #2563eb); -webkit-background-clip: text; color: transparent; margin-bottom: 1rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1.5rem; text-align: left; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-muted); }
+        .form-control { width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; color: white; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: var(--accent); }
+        select.form-control { appearance: none; }
+        .btn { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+        .success { color: #10b981; font-size: 0.875rem; margin-top: 1rem; display: none; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <a href="/" style="text-decoration: none;"><div class="logo">NexAPI Cloud</div></a>
+        <h2 style="margin-bottom: 0.5rem;">Start building for free</h2>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem;">No credit card required for the Starter plan.</p>
+        
+        <form id="registerForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" name="firstName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" name="lastName" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Work Email</label>
+                <input type="email" name="email" class="form-control" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label>Company Name</label>
+                <input type="text" name="company" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Select Plan</label>
+                <select name="plan" class="form-control">
+                    <option value="starter">Starter (€0/mo)</option>
+                    <option value="pro">Pro (€29/mo)</option>
+                    <option value="enterprise">Enterprise (Custom)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-control" required autocomplete="new-password">
+            </div>
+            
+            <div style="text-align: left; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
+                <label><input type="checkbox" required> I agree to the Terms of Service and Privacy Policy</label>
+            </div>
+            
+            <button type="submit" class="btn">Create Account</button>
+            <div id="successMsg" class="success">Account created! Check your email to confirm.</div>
+        </form>
+
+        <p style="margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted);">
+            Already have an account? <a href="/login" style="color: var(--accent); text-decoration: none;">Log in</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const successDiv = document.getElementById('successMsg');
+            const email = this.email.value;
+            
+            btn.innerText = 'Creating account...';
+            btn.disabled = true;
+
+            try {
+                await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                successDiv.style.display = 'block';
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerText = 'Create Account';
+                this.reset();
+                setTimeout(() => btn.disabled = false, 2000);
+            }
+        });
+        
+        // Basic event tracking
+        (function(){
+            const sid = document.cookie.match(/_nx_session=([^;]+)/);
+            const sessionId = sid ? sid[1] : '';
+            document.addEventListener('click', e => {
+                const t = e.target.closest('a,button');
+                if(t) fetch('/api/track/event', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'click',sessionId,data:{element:t.tagName,text:t.innerText}}) }).catch(()=>{});
+            });
+        })();
+    </script>
+</body>
+</html>

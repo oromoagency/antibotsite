@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexAPI Cloud Documentation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+        :root { --bg: #0a0f1e; --sidebar: #0f172a; --card: rgba(255,255,255,0.03); --border: rgba(255,255,255,0.1); --text: #f8fafc; --text-muted: #94a3b8; --accent: #7c3aed; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; min-height: 100vh; }
+        
+        .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 2rem 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+        .logo { font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white; text-decoration: none; display: block; }
+        .nav-group { margin-bottom: 1.5rem; }
+        .nav-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 0.75rem; font-weight: 600; }
+        .sidebar a { display: block; padding: 0.5rem 0; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .sidebar a:hover, .sidebar a.active { color: var(--accent); }
+        
+        .content { flex: 1; padding: 4rem 5%; max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        h2 { font-size: 1.5rem; margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        p { color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem; }
+        
+        .endpoint { display: flex; align-items: center; gap: 1rem; background: var(--card); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-family: 'Fira Code', monospace; font-size: 0.9rem; }
+        .method { padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem; }
+        .method.get { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .method.post { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        
+        pre { background: #0f172a; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; margin-bottom: 2rem; }
+        code { font-family: 'Fira Code', monospace; font-size: 0.875rem; color: #e2e8f0; }
+        .code-comment { color: #64748b; }
+        .code-string { color: #a5b4fc; }
+        .code-keyword { color: #f472b6; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <a href="/" class="logo">NexAPI Cloud</a>
+        <div class="nav-group">
+            <div class="nav-title">Getting Started</div>
+            <a href="#" class="active">Introduction</a>
+            <a href="#">Authentication</a>
+            <a href="#">Rate Limits</a>
+            <a href="#">Errors</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-title">Core API</div>
+            <a href="#">Users</a>
+            <a href="#">Organizations</a>
+            <a href="#">Projects</a>
+            <a href="#">API Keys</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-title">Advanced</div>
+            <a href="#">Webhooks</a>
+            <a href="#">Analytics</a>
+            <a href="#">Audit Logs</a>
+        </div>
+    </aside>
+
+    <main class="content">
+        <h1>NexAPI Cloud Reference</h1>
+        <p>Welcome to the official NexAPI Cloud documentation. Our RESTful API allows you to programmatically manage your infrastructure, retrieve analytics, and configure your API gateways.</p>
+        
+        <h2>Authentication</h2>
+        <p>All API requests require authentication using a Bearer token. You can generate an API key from your dashboard.</p>
+        
+        <pre><code><span class="code-comment"># Example request with authentication</span>
+curl -H <span class="code-string">"Authorization: Bearer nx_live_7x89ab..."</span> \
+     https://api.nexapi-cloud.com/v1/users</code></pre>
+
+        <h2>Endpoints</h2>
+        
+        <p>Retrieve a list of users in your organization.</p>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span>/api/demo/v1/users</span>
+        </div>
+        
+        <pre><code><span class="code-comment">// Response (200 OK)</span>
+{
+  <span class="code-keyword">"data"</span>: [
+    {
+      <span class="code-keyword">"id"</span>: <span class="code-string">"usr_1"</span>,
+      <span class="code-keyword">"name"</span>: <span class="code-string">"John Doe"</span>,
+      <span class="code-keyword">"role"</span>: <span class="code-string">"admin"</span>
+    }
+  ],
+  <span class="code-keyword">"meta"</span>: {
+    <span class="code-keyword">"total"</span>: 1
+  }
+}</code></pre>
+
+        <p>Fetch real-time metrics for your API gateway.</p>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span>/api/demo/v1/metrics</span>
+        </div>
+        
+        <p>Create a new API key (requires admin privileges).</p>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span>/api/demo/v1/keys</span>
+        </div>
+
+        <pre><code><span class="code-comment">// Request body</span>
+{
+  <span class="code-keyword">"name"</span>: <span class="code-string">"Production Key"</span>,
+  <span class="code-keyword">"scopes"</span>: [<span class="code-string">"read"</span>, <span class="code-string">"write"</span>]
+}</code></pre>
+    </main>
+
+    <!-- Tracking -->
+    <script>
+        (function(){
+            const sid = document.cookie.match(/_nx_session=([^;]+)/);
+            const sessionId = sid ? sid[1] : '';
+            // Just basic track to see if bots are scraping
+            document.addEventListener('click', e => {
+                const t = e.target.closest('a');
+                if(t) fetch('/api/track/event', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'click',sessionId,data:{element:t.tagName,href:t.href}}) }).catch(()=>{});
+            });
+        })();
+    </script>
+</body>
+</html>

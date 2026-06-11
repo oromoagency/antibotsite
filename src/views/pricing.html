@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing — NexAPI Cloud</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        :root { --bg: #0a0f1e; --text: #f8fafc; --text-muted: #94a3b8; --accent: #7c3aed; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 4rem 5%; text-align: center; }
+        h1 { font-size: 3rem; margin-bottom: 1rem; }
+        p { color: var(--text-muted); margin-bottom: 4rem; max-width: 600px; margin-inline: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 1000px; margin: 0 auto; }
+        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 3rem; border-radius: 12px; }
+        .price { font-size: 3rem; font-weight: 800; margin: 1.5rem 0; }
+        .price span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+        .btn { display: inline-block; width: 100%; padding: 0.75rem; background: var(--accent); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+    <a href="/" style="color: var(--text-muted); text-decoration: none; position: absolute; top: 2rem; left: 2rem;">← Back to Home</a>
+    <h1>Simple, transparent pricing</h1>
+    <p>Start for free, upgrade when you need to. No hidden fees.</p>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>Starter</h3>
+            <div class="price">€0<span>/mo</span></div>
+            <a href="/register" class="btn" style="background: transparent; border: 1px solid var(--text-muted);">Start Free</a>
+        </div>
+        <div class="card" style="border-color: var(--accent);">
+            <h3>Pro</h3>
+            <div class="price">€29<span>/mo</span></div>
+            <a href="/register" class="btn">Start Free Trial</a>
+        </div>
+    </div>
+    
+    <script>
+        (function(){
+            const sid = document.cookie.match(/_nx_session=([^;]+)/);
+            if(sid) fetch('/api/track/event', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'click',sessionId:sid[1],data:{element:'pageview',text:'pricing'}}) }).catch(()=>{});
+        })();
+    </script>
+</body>
+</html>

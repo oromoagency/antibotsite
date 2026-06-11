@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexAPI Cloud — API Management Platform | Build, Deploy, Scale</title>
+    <meta name="description" content="Build, deploy, and scale your APIs instantly with NexAPI Cloud. The most powerful API management platform for modern developers.">
+    
+    <!-- Tracking NexAPI -->
+    <script>
+    (function() {
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        };
+        const sessionId = getCookie('_nx_session');
+        
+        // Identify
+        fetch('/api/track/event', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                type: 'identify',
+                sessionId,
+                data: {
+                    screen: window.screen.width + 'x' + window.screen.height,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    cookiesEnabled: navigator.cookieEnabled,
+                    localStorageAvailable: !!window.localStorage,
+                    language: navigator.language
+                }
+            })
+        }).catch(()=>{});
+        
+        // Click tracking
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button, [data-track]');
+            if (!target) return;
+            fetch('/api/track/event', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    type: 'click',
+                    sessionId,
+                    data: { element: target.tagName, text: target.innerText?.slice(0,50), href: target.href || '' }
+                })
+            }).catch(()=>{});
+        });
+        
+        // Scroll tracking (throttled)
+        let lastScroll = 0;
+        document.addEventListener('scroll', function() {
+            const now = Date.now();
+            if (now - lastScroll < 5000) return;
+            lastScroll = now;
+            fetch('/api/track/event', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    type: 'scroll',
+                    sessionId,
+                    data: { depth: Math.round((window.scrollY / document.body.scrollHeight) * 100) }
+                })
+            }).catch(()=>{});
+        });
+        
+        // JS error tracking
+        window.addEventListener('error', function(e) {
+            fetch('/api/track/event', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    type: 'js_error',
+                    sessionId,
+                    data: { message: e.message, filename: e.filename, line: e.lineno }
+                })
+            }).catch(()=>{});
+        });
+        
+        // Form submission tracking
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            fetch('/api/track/event', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    type: 'form_submit',
+                    sessionId,
+                    data: { formId: form.id || form.action || 'unknown', action: form.action }
+                })
+            }).catch(()=>{});
+        });
+    })();
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --bg-color: #0a0f1e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-start: #7c3aed;
+            --accent-end: #2563eb;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        a { text-decoration: none; color: inherit; }
+        
+        /* Navbar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 5%;
+            border-bottom: 1px solid var(--card-border);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(to right, var(--accent-start), var(--accent-end)); -webkit-background-clip: text; color: transparent; }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-links a { font-weight: 500; color: var(--text-secondary); transition: color 0.3s; }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-actions { display: flex; gap: 1rem; align-items: center; }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-primary); }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-start), var(--accent-end)); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 8rem 20px;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+            z-index: -1;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+        }
+        .hero h1 { font-size: 4rem; font-weight: 800; margin-bottom: 1.5rem; line-height: 1.1; }
+        .hero p { font-size: 1.25rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto 3rem; }
+        .hero-ctas { display: flex; justify-content: center; gap: 1rem; }
+
+        /* Partners */
+        .partners {
+            text-align: center;
+            padding: 4rem 20px;
+            border-top: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .partners p { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 1px; }
+        .partner-logos { display: flex; justify-content: center; gap: 4rem; flex-wrap: wrap; opacity: 0.5; font-weight: 700; font-size: 1.5rem; }
+
+        /* Features */
+        .section-container { padding: 6rem 5%; max-width: 1200px; margin: 0 auto; }
+        .section-header { text-align: center; margin-bottom: 4rem; }
+        .section-header h2 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-5px); border-color: rgba(124, 58, 237, 0.5); }
+        .card h3 { font-size: 1.25rem; margin-bottom: 1rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; }
+
+        /* Stats */
+        .stats {
+            background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(37,99,235,0.1));
+            padding: 4rem 5%;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            border-top: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .stat-item h4 { font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(to right, var(--accent-start), var(--accent-end)); -webkit-background-clip: text; color: transparent; }
+        .stat-item p { color: var(--text-secondary); font-weight: 500; }
+
+        /* Pricing */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+        .pricing-card { text-align: center; }
+        .pricing-card h3 { font-size: 1.5rem; margin-bottom: 1rem; }
+        .price { font-size: 3rem; font-weight: 800; margin-bottom: 2rem; }
+        .price span { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
+        .features-list { list-style: none; text-align: left; margin-bottom: 2rem; }
+        .features-list li { margin-bottom: 0.75rem; color: var(--text-secondary); padding-left: 1.5rem; position: relative; }
+        .features-list li::before { content: '✓'; position: absolute; left: 0; color: var(--accent-end); }
+
+        /* Contact */
+        .contact-form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 3rem;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-secondary); }
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: white;
+            font-family: inherit;
+        }
+        .form-control:focus { outline: none; border-color: var(--accent-start); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--card-border);
+            padding: 4rem 5% 2rem;
+            background: rgba(0,0,0,0.2);
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+        .footer-col h4 { margin-bottom: 1.5rem; font-size: 1rem; }
+        .footer-col ul { list-style: none; }
+        .footer-col ul li { margin-bottom: 0.75rem; }
+        .footer-col ul a { color: var(--text-secondary); font-size: 0.875rem; }
+        .footer-col ul a:hover { color: white; }
+        .copyright { text-align: center; color: var(--text-secondary); font-size: 0.875rem; border-top: 1px solid var(--card-border); padding-top: 2rem; }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero h1 { font-size: 2.5rem; }
+            .stats { flex-direction: column; gap: 2rem; }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">NexAPI Cloud</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="/docs">Docs</a>
+            <a href="/pricing">Pricing</a>
+            <a href="#">Blog</a>
+            <a href="#">Enterprise</a>
+        </div>
+        <div class="nav-actions">
+            <a href="/login" class="btn btn-outline">Log in</a>
+            <a href="/register" class="btn btn-primary">Get Started</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="badge">🚀 NexAPI Cloud 2.0 is now live</div>
+        <h1>Build. Deploy. Scale.<br>Instantly.</h1>
+        <p>The enterprise-grade API management platform that scales with your business. Secure, fast, and remarkably easy to use.</p>
+        <div class="hero-ctas">
+            <a href="/register" class="btn btn-primary">Start Building Free</a>
+            <a href="/docs" class="btn btn-outline">Explore Documentation</a>
+            <a href="#contact" class="btn btn-outline">Book Demo</a>
+        </div>
+    </section>
+
+    <section class="partners">
+        <p>Trusted by innovative teams worldwide</p>
+        <div class="partner-logos">
+            <span>TechCorp</span>
+            <span>GlobalNet</span>
+            <span>DataFlow</span>
+            <span>CloudSync</span>
+            <span>NexusApp</span>
+        </div>
+    </section>
+
+    <section id="features" class="section-container">
+        <div class="section-header">
+            <h2>Everything you need to scale</h2>
+            <p style="color: var(--text-secondary)">Powerful features designed for modern engineering teams.</p>
+        </div>
+        <div class="features-grid">
+            <div class="card">
+                <h3>⚡ API Gateway</h3>
+                <p>Ultra-low latency global routing. Deploy your endpoints to edge locations worldwide in seconds.</p>
+            </div>
+            <div class="card">
+                <h3>📊 Real-time Analytics</h3>
+                <p>Monitor traffic, errors, and performance with millisecond precision. Custom dashboards included.</p>
+            </div>
+            <div class="card">
+                <h3>🛡️ Advanced Security</h3>
+                <p>Built-in rate limiting, WAF, and DDoS protection. Keep your infrastructure safe automatically.</p>
+            </div>
+            <div class="card">
+                <h3>🔗 Smart Webhooks</h3>
+                <p>Reliable event delivery with automatic retries and payload validation out of the box.</p>
+            </div>
+            <div class="card">
+                <h3>💻 Multi-language SDKs</h3>
+                <p>Auto-generated client libraries for JS, Python, Go, Rust, and Java. Always in sync.</p>
+            </div>
+            <div class="card">
+                <h3>📚 Interactive Docs</h3>
+                <p>Beautiful, developer-friendly documentation generated automatically from your OpenAPI specs.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stat-item">
+            <h4>50K+</h4>
+            <p>Developers</p>
+        </div>
+        <div class="stat-item">
+            <h4>2M+</h4>
+            <p>API Calls / Day</p>
+        </div>
+        <div class="stat-item">
+            <h4>99.99%</h4>
+            <p>Uptime SLA</p>
+        </div>
+        <div class="stat-item">
+            <h4>180+</h4>
+            <p>Countries</p>
+        </div>
+    </section>
+
+    <section id="pricing" class="section-container">
+        <div class="section-header">
+            <h2>Simple, transparent pricing</h2>
+        </div>
+        <div class="pricing-grid">
+            <div class="card pricing-card">
+                <h3>Starter</h3>
+                <div class="price">€0<span>/mo</span></div>
+                <ul class="features-list">
+                    <li>100,000 API calls/month</li>
+                    <li>Basic Analytics</li>
+                    <li>Community Support</li>
+                </ul>
+                <a href="/register" class="btn btn-outline" style="width: 100%">Get Started</a>
+            </div>
+            <div class="card pricing-card" style="border-color: var(--accent-start);">
+                <h3>Pro</h3>
+                <div class="price">€29<span>/mo</span></div>
+                <ul class="features-list">
+                    <li>2,000,000 API calls/month</li>
+                    <li>Advanced Analytics</li>
+                    <li>Priority Support</li>
+                    <li>Custom Domains</li>
+                </ul>
+                <a href="/register" class="btn btn-primary" style="width: 100%">Start Free Trial</a>
+            </div>
+            <div class="card pricing-card">
+                <h3>Enterprise</h3>
+                <div class="price">Custom</div>
+                <ul class="features-list">
+                    <li>Unlimited API calls</li>
+                    <li>Dedicated Infrastructure</li>
+                    <li>24/7 Phone Support</li>
+                    <li>Custom SLA</li>
+                </ul>
+                <a href="#contact" class="btn btn-outline" style="width: 100%">Contact Sales</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="section-container">
+        <div class="section-header">
+            <h2>Let's talk</h2>
+            <p style="color: var(--text-secondary)">Have questions? Our team is here to help.</p>
+        </div>
+        <div class="contact-form">
+            <form action="/api/track/event" method="POST" id="contactForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" class="form-control" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Work Email</label>
+                    <input type="email" class="form-control" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" class="form-control" name="company">
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea class="form-control" name="message" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Send Message</button>
+            </form>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="logo" style="font-size: 1.2rem; margin-bottom: 1rem;">NexAPI Cloud</div>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">Building the future of API infrastructure.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <ul>
+                    <li><a href="#">Features</a></li>
+                    <li><a href="#">Integrations</a></li>
+                    <li><a href="#">Pricing</a></li>
+                    <li><a href="#">Changelog</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Developers</h4>
+                <ul>
+                    <li><a href="/docs">Documentation</a></li>
+                    <li><a href="#">API Reference</a></li>
+                    <li><a href="#">Status</a></li>
+                    <li><a href="#">GitHub</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About Us</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Blog</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright">
+            © 2026 NexAPI Cloud Inc. All rights reserved.
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            btn.innerText = 'Sending...';
+            setTimeout(() => {
+                btn.innerText = 'Message Sent!';
+                btn.style.background = '#10b981';
+                this.reset();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
