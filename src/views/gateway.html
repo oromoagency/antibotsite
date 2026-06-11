@@ -88,8 +88,7 @@
     <div class="container" id="challenge-box">
         <div class="loader"></div>
         <h2 id="status">Vérification de sécurité</h2>
-        <p>Veuillez prouver votre humanité en tapant "Je suis humain", puis bougez la souris ou touchez l'écran.</p>
-        <input type="text" id="human-typing" placeholder="Tapez ici..." style="margin-top:15px; padding:8px; border-radius:4px; border:1px solid #333; background:#000; color:#fff;">
+        <p>Veuillez patienter pendant que nous sécurisons votre connexion...</p>
     </div>
 
     <script>
@@ -165,25 +164,7 @@
         // Les taps tactiles ne génèrent pas toujours de move : on capte les downs.
         document.addEventListener(hasPointerEvents ? 'pointerdown' : 'mousedown', e => recordPoint(e, 'down'));
 
-        const typingInput = document.getElementById('human-typing');
-        let currentKeyDownTime = 0; // horodatage du keydown de la touche EN COURS
-
-        typingInput.addEventListener('keydown', (e) => {
-            currentKeyDownTime = performance.now();
-        });
-
-        typingInput.addEventListener('keyup', (e) => {
-            const now = performance.now();
-            const dwellTime = now - currentKeyDownTime; // durée de maintien de la touche
-
-            if (keyEvents.length > 0) {
-                // temps de vol = entre le relâchement de la touche précédente et l'appui de celle-ci
-                const flightTime = currentKeyDownTime - keyEvents[keyEvents.length-1].t_up;
-                keyEvents.push({ key: e.key, dwellTime, flightTime, t_up: now });
-            } else {
-                keyEvents.push({ key: e.key, dwellTime, flightTime: 0, t_up: now });
-            }
-        });
+        // Les événements clavier ne sont plus obligatoires en mode transparent.
 
         function trapBot(e) {
             e.preventDefault();
@@ -351,21 +332,19 @@
         }
 
         let waitCycles = 0;
-        const MAX_WAIT_CYCLES = 16; // ~8s : ensuite, on envoie ce qu'on a
-                                    // (utilisateur clavier-seul / lecteur d'écran).
+        const MAX_WAIT_CYCLES = 6; // ~3s : attente courte pour capter la souris si possible
 
         async function runSecurityCheck() {
             const statusEl = document.getElementById('status');
 
-            // On attend la frappe (obligatoire) et le pointeur (avec issue de
-            // secours : un humain naviguant au clavier n'a aucun pointer event).
-            if (keyEvents.length < 5 || (!pointerCollectedEnough() && waitCycles < MAX_WAIT_CYCLES)) {
+            // On attend au plus 3 secondes pour récupérer des mouvements de souris (non obligatoire)
+            if (!pointerCollectedEnough() && waitCycles < MAX_WAIT_CYCLES) {
                 waitCycles++;
                 setTimeout(runSecurityCheck, 500);
                 return;
             }
 
-            statusEl.innerText = "Analyse comportementale en cours...";
+            statusEl.innerText = "Analyse de sécurité en cours...";
 
             const timestamp = Date.now();
             const fingerprint = gatherFingerprint();

@@ -6,10 +6,31 @@ const visitorTracker = require('../middlewares/visitorTracker');
 
 const VIEWS_ROOT = path.join(__dirname, '../views');
 
-// Middleware de tracking sur toutes les pages publiques
+// Middleware de tracking (s'applique à tous, y compris les bots sur la gateway)
 router.use(visitorTracker);
 
-// --- Pages publiques (sans antibot) ---
+// --- LE BOUCLIER (GATEWAY ABSOLUE) ---
+// Aucun bot ne verra le code des pages suivantes s'il ne passe pas ce test.
+const requireHuman = (req, res, next) => {
+    // Exclure le dashboard admin du test PoW pour y accéder facilement
+    if (req.path === '/admin') return next();
+
+    const result = L7_session.verifyToken(req.cookies['human_auth_token']);
+    if (!result.valid) {
+        console.log(`[L7_SESSION] Session absente/expirée pour ${req.path}. IP: ${req.ip}`);
+        res.clearCookie('human_auth_token');
+        // On sert la Gateway directement sur l'URL demandée.
+        // Si le test réussit, gateway.html rechargera la page et l'utilisateur verra le vrai contenu.
+        return res.sendFile('gateway.html', { root: VIEWS_ROOT });
+    }
+    
+    // Si c'est un humain valide, on le laisse passer vers le vrai site
+    next();
+};
+
+router.use(requireHuman);
+
+// --- Vrai contenu du site (invisible pour les bots) ---
 router.get('/', (req, res) => {
     res.sendFile('landing.html', { root: VIEWS_ROOT });
 });
@@ -35,15 +56,8 @@ router.get('/admin', (req, res) => {
     res.sendFile('admin.html', { root: VIEWS_ROOT });
 });
 
-// --- Application protégée (passe par l'antibot) ---
+// --- Application protégée ---
 router.get('/app', (req, res) => {
-    const result = L7_session.verifyToken(req.cookies['human_auth_token']);
-    if (!result.valid) {
-        console.log(`[L7_SESSION] Session absente ou expirée. IP: ${req.ip}`);
-        res.clearCookie('human_auth_token');
-        return res.sendFile('gateway.html', { root: VIEWS_ROOT });
-    }
-    console.log(`[L7_SESSION] Utilisateur validé (score: ${result.data.trustScore}). IP: ${req.ip}`);
     res.sendFile('protected_app.html', { root: VIEWS_ROOT });
 });
 

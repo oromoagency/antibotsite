@@ -31,7 +31,7 @@ const SYNTHETIC_INJECT_PENALTY = -50; // inject CDP sans pointerdown OU pression
 // -85 (rapport bots #3) : score 15 → BAN. Un bot qui n'interagit pas du tout
 // est un script HTTP brut — il ne DOIT PAS pouvoir réessayer en boucle.
 // L'ancien -60 (score 40) = BLOCK sans ban = retry infini possible.
-const NO_INTERACTION_PENALTY = -85;
+const NO_INTERACTION_PENALTY = 0;
 // -5 et non -45 (revue) : la navigation au clavier seul est un schéma
 // d'ACCESSIBILITÉ légitime (lecteur d'écran NVDA/JAWS, handicap moteur). Couplée
 // à un navigateur durci (Tor farble le hardware → -20 en L4), l'ancien -20
@@ -42,7 +42,7 @@ const MISSING_POINTER_PENALTY = -5;   // clavier ok mais aucun pointeur (clavier
 // fausse trajectoire souris mais sans frappe clavier score 55 < seuil 60.
 // Un humain qui ne tape pas après 8s le retry et tape. MISSING_POINTER (-5)
 // inchangé : l'accessibilité prime sur la détection dans ce cas précis.
-const MISSING_KEYBOARD_PENALTY = -45;
+const MISSING_KEYBOARD_PENALTY = 0;
 const SMOOTHED_PENALTY = -80;         // jerk nul : trajectoire générée
 const FLAT_CADENCE_PENALTY = -40;     // dwell times identiques : frappe injectée
 // Frappe surhumaine (rapport bots #3 : « interactions trop rapides pour être
