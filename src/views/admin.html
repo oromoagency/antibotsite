@@ -1,310 +1,1370 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexAPI Admin Dashboard</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        :root { --bg: #f8fafc; --sidebar: #0f172a; --card: #ffffff; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --accent: #2563eb; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
-        .sidebar { width: 250px; background: var(--sidebar); color: white; padding: 1.5rem; display: flex; flex-direction: column; }
-        .logo { font-size: 1.25rem; font-weight: 800; margin-bottom: 2rem; color: white; text-decoration: none; }
-        .nav-link { display: block; padding: 0.75rem 1rem; color: #94a3b8; text-decoration: none; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; }
-        .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: white; }
-        
-        .main-content { flex: 1; overflow-y: auto; padding: 2rem; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-        h1 { margin: 0; font-size: 1.5rem; }
-        
-        /* Stats Grid */
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
-        .stat-card { background: var(--card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .stat-title { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 500; }
-        .stat-value { font-size: 1.8rem; font-weight: 700; }
-        
-        /* Table */
-        .table-container { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
-        th { background: #f1f5f9; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
-        tr:hover { background: #f8fafc; cursor: pointer; }
-        
-        .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .badge.allowed { background: #dcfce7; color: #166534; }
-        .badge.blocked { background: #fee2e2; color: #991b1b; }
-        .badge.suspect { background: #fef9c3; color: #854d0e; }
-        .badge.pending { background: #f1f5f9; color: #475569; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexAPI Admin — Control Center</title>
+  <meta name="description" content="NexAPI Admin Dashboard — Real-time antibot monitoring and visitor intelligence.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: white; width: 800px; max-height: 90vh; border-radius: 8px; overflow-y: auto; padding: 2rem; position: relative; }
-        .close { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
-        .detail-item { background: #f8fafc; padding: 1rem; border-radius: 6px; }
-        .detail-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
-        .detail-val { font-weight: 500; font-size: 0.875rem; word-break: break-all; }
-        
-        .timeline { margin-top: 2rem; }
-        .timeline-event { border-left: 2px solid var(--border); padding-left: 1rem; margin-bottom: 1rem; position: relative; }
-        .timeline-event::before { content: ''; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; position: absolute; left: -6px; top: 5px; }
-        .timeline-time { font-size: 0.75rem; color: var(--text-muted); }
-        .timeline-desc { font-size: 0.875rem; font-weight: 500; }
-        
-        /* Login screen */
-        #login-screen { position: fixed; inset: 0; background: var(--sidebar); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        .login-box { background: white; padding: 2rem; border-radius: 8px; width: 300px; text-align: center; }
-        input[type="password"] { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 1rem; box-sizing: border-box; }
-        button { width: 100%; padding: 0.75rem; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; }
-    </style>
+    :root {
+      --bg:         #0f172a;
+      --surface:    #1e293b;
+      --surface2:   #263248;
+      --border:     #334155;
+      --border2:    #1e3a5f;
+      --text:       #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim:   #64748b;
+      --accent:     #3b82f6;
+      --accent2:    #6366f1;
+      --green:      #22c55e;
+      --yellow:     #eab308;
+      --red:        #ef4444;
+      --orange:     #f97316;
+      --cyan:       #06b6d4;
+      --purple:     #a855f7;
+      --glass:      rgba(30,41,59,0.85);
+      --glow-blue:  0 0 20px rgba(59,130,246,0.25);
+      --glow-red:   0 0 20px rgba(239,68,68,0.25);
+      --glow-green: 0 0 20px rgba(34,197,94,0.2);
+      --radius:     10px;
+      --radius-lg:  16px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html { height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100%;
+      display: flex;
+      overflow: hidden;
+      line-height: 1.5;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    /* ===== LOGIN SCREEN ===== */
+    #login-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: linear-gradient(135deg, #0a0f1e 0%, #0f172a 50%, #0d1b30 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridShift 20s linear infinite;
+    }
+    @keyframes gridShift { from { transform: translateY(0); } to { transform: translateY(40px); } }
+
+    .login-box {
+      position: relative; z-index: 1;
+      background: rgba(30,41,59,0.9);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem;
+      width: 380px;
+      box-shadow: var(--shadow), var(--glow-blue);
+      animation: slideUp 0.5s ease;
+    }
+    @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+
+    .login-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+    .login-logo-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; font-weight: 800; color: white;
+      box-shadow: var(--glow-blue);
+    }
+    .login-logo-text { font-size: 1.1rem; font-weight: 700; }
+    .login-logo-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+
+    .login-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .login-subtitle { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.75rem; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input {
+      width: 100%; padding: 0.75rem 1rem;
+      background: rgba(15,23,42,0.8); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .form-input::placeholder { color: var(--text-dim); }
+
+    .btn-primary {
+      width: 100%; padding: 0.8rem; border: none; border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: var(--glow-blue); position: relative; overflow: hidden;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(59,130,246,0.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-primary .btn-loader { display: none; }
+    .btn-primary.loading .btn-text { display: none; }
+    .btn-primary.loading .btn-loader { display: inline; }
+
+    .login-error {
+      display: none; margin-top: 0.75rem;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 6px; padding: 0.6rem 0.85rem;
+      color: var(--red); font-size: 0.82rem; font-weight: 500;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 220px; min-width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 1.25rem 0; overflow: hidden;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+    }
+    .sidebar-logo-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; font-weight: 800; color: white; flex-shrink: 0;
+    }
+    .sidebar-logo-text { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .sidebar-logo-badge {
+      font-size: 0.6rem; font-weight: 700; color: var(--accent);
+      background: rgba(59,130,246,0.12); border-radius: 3px;
+      padding: 1px 4px; margin-left: 2px;
+    }
+
+    .sidebar-nav { padding: 1rem 0.75rem; flex: 1; }
+    .nav-section-title {
+      font-size: 0.65rem; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0 0.5rem; margin-bottom: 0.4rem; margin-top: 0.75rem;
+    }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.65rem 0.75rem; border-radius: 8px;
+      color: var(--text-muted); text-decoration: none; cursor: pointer;
+      font-size: 0.875rem; font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      margin-bottom: 0.15rem; border: none; background: none; width: 100%; text-align: left;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .nav-link.active { background: rgba(59,130,246,0.12); color: var(--accent); }
+    .nav-link .nav-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto; font-size: 0.7rem; font-weight: 700;
+      background: rgba(239,68,68,0.15); color: var(--red);
+      border-radius: 10px; padding: 1px 6px; min-width: 18px; text-align: center;
+    }
+
+    .sidebar-footer { padding: 1rem 0.75rem; border-top: 1px solid var(--border); }
+    .btn-sidebar {
+      display: flex; align-items: center; gap: 0.6rem;
+      width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 500; cursor: pointer;
+      border: none; transition: all 0.15s; margin-bottom: 0.4rem;
+    }
+    .btn-telegram { background: rgba(6,182,212,0.1); color: var(--cyan); }
+    .btn-telegram:hover { background: rgba(6,182,212,0.2); }
+    .btn-logout { background: rgba(239,68,68,0.08); color: var(--text-muted); }
+    .btn-logout:hover { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .pulse-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      animation: pulse 2s ease infinite; flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      50% { opacity: 0.85; box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+    }
+    .live-label { font-size: 0.72rem; color: var(--green); font-weight: 600; }
+
+    /* ===== MAIN AREA ===== */
+    .main-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar {
+      height: 56px; min-height: 56px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;
+    }
+    .topbar-title { font-size: 1rem; font-weight: 700; flex: 1; }
+    .topbar-time { font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .topbar-refresh { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--text-dim); }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; display: none;
+    }
+    .spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .content-area { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+    /* ===== TAB PANES ===== */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== SECTION HEADERS ===== */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .section-title { font-size: 1.15rem; font-weight: 700; }
+    .section-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ===== STAT CARDS ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .stat-card:hover { border-color: var(--border2); }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 2px; background: var(--accent-color, var(--accent));
+    }
+    .stat-card.green::before { --accent-color: var(--green); }
+    .stat-card.red::before { --accent-color: var(--red); }
+    .stat-card.yellow::before { --accent-color: var(--yellow); }
+    .stat-card.cyan::before { --accent-color: var(--cyan); }
+    .stat-card.purple::before { --accent-color: var(--purple); }
+    .stat-card.orange::before { --accent-color: var(--orange); }
+
+    .stat-icon { font-size: 1.3rem; margin-bottom: 0.6rem; }
+    .stat-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .stat-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.yellow { color: var(--yellow); }
+    .stat-value.cyan { color: var(--cyan); }
+    .stat-value.purple { color: var(--purple); }
+    .stat-value.orange { color: var(--orange); }
+    .stat-delta { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ===== ANTIBOT POSTURE PANEL ===== */
+    .posture-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .posture-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .posture-title { font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+    .posture-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.85rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+    }
+    .posture-badge.STRICT { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+    .posture-badge.BALANCED { background: rgba(234,179,8,0.1); color: var(--yellow); border: 1px solid rgba(234,179,8,0.25); }
+    .posture-badge.RELAXED { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+    .posture-badge.LOCKDOWN { background: rgba(239,68,68,0.2); color: #ff6b6b; border: 1px solid rgba(239,68,68,0.4); box-shadow: var(--glow-red); }
+
+    .posture-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .posture-metric { text-align: center; padding: 0.75rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); }
+    .posture-metric-val { font-size: 1.4rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+    .posture-metric-lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ===== FILTER BAR ===== */
+    .filter-bar {
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .filter-search {
+      flex: 1; min-width: 180px; padding: 0.6rem 0.9rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 0.875rem; outline: none; font-family: 'Inter', sans-serif;
+      transition: border-color 0.15s;
+    }
+    .filter-search:focus { border-color: var(--accent); }
+    .filter-search::placeholder { color: var(--text-dim); }
+    .filter-btn {
+      padding: 0.55rem 0.9rem; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif;
+    }
+    .filter-btn:hover, .filter-btn.active { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: var(--accent); }
+    .filter-btn.active-red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+    .filter-btn.active-yellow { background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.3); color: var(--yellow); }
+    .filter-btn.active-green { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: var(--green); }
+
+    /* ===== TABLE ===== */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--bg); padding: 0.75rem 1rem;
+      font-size: 0.7rem; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      transition: background 0.12s; cursor: pointer;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody td { padding: 0.8rem 1rem; font-size: 0.845rem; vertical-align: middle; }
+
+    .ip-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 500; }
+    .loc-cell { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .browser-cell { font-size: 0.82rem; }
+    .os-cell { font-size: 0.72rem; color: var(--text-muted); }
+
+    .score-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .score-num { font-size: 0.85rem; font-weight: 700; min-width: 28px; font-family: 'JetBrains Mono', monospace; }
+    .score-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; min-width: 40px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.55rem; border-radius: 5px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge.allowed  { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+    .badge.blocked  { background: rgba(239,68,68,0.12); color: var(--red);   border: 1px solid rgba(239,68,68,0.25); }
+    .badge.suspect  { background: rgba(234,179,8,0.1);  color: var(--yellow);border: 1px solid rgba(234,179,8,0.25); }
+    .badge.pending  { background: rgba(148,163,184,0.1);color: var(--text-muted); border: 1px solid var(--border); }
+    .badge.log-type { background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.2); }
+
+    /* ===== LOGS TABLE ===== */
+    .log-details {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+      color: var(--text-muted); max-width: 360px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center; padding: 3rem;
+      color: var(--text-dim); font-size: 0.875rem;
+    }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 5000;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); width: 100%; max-width: 820px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      animation: slideUp 0.25s ease;
+    }
+    .modal-header {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+    .modal-close {
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; cursor: pointer; background: none; border: none;
+      color: var(--text-muted); font-size: 1.2rem; transition: background 0.15s, color 0.15s;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.1); color: var(--red); }
+
+    .modal-body { padding: 1.5rem; }
+
+    .m-section { margin-bottom: 1.5rem; }
+    .m-section-title {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-dim); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .m-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .detail-item {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem 1rem;
+    }
+    .detail-item.full { grid-column: span 2; }
+    .detail-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin-bottom: 0.35rem; }
+    .detail-val { font-size: 0.875rem; font-weight: 500; word-break: break-all; line-height: 1.5; }
+    .detail-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+    .score-display {
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .score-circle {
+      width: 48px; height: 48px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 800; border: 2px solid;
+      flex-shrink: 0;
+    }
+
+    .reasons-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .reason-tag {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: rgba(239,68,68,0.1); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.25); border-radius: 5px;
+      font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.55rem;
+    }
+
+    .stats-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .stat-chip {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.8rem;
+    }
+    .stat-chip-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .stat-chip-lbl { color: var(--text-muted); font-size: 0.72rem; }
+
+    /* ===== TIMELINE ===== */
+    .timeline { position: relative; padding-left: 1.5rem; }
+    .timeline::before {
+      content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+      width: 1px; background: var(--border);
+    }
+    .tl-event {
+      position: relative; margin-bottom: 1rem;
+    }
+    .tl-dot {
+      position: absolute; left: -1.5rem; top: 4px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--accent); border: 2px solid var(--bg);
+      flex-shrink: 0;
+    }
+    .tl-dot.page { background: var(--cyan); }
+    .tl-dot.block { background: var(--red); }
+    .tl-dot.warn  { background: var(--yellow); }
+    .tl-dot.form  { background: var(--purple); }
+    .tl-dot.login { background: var(--orange); }
+    .tl-dot.error { background: var(--red); }
+
+    .tl-time { font-size: 0.68rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+    .tl-desc { font-size: 0.82rem; font-weight: 500; color: var(--text); margin-top: 2px; }
+    .tl-sub { font-size: 0.73rem; color: var(--text-muted); margin-top: 1px; word-break: break-all; }
+
+    /* ===== NOTIFICATION TOAST ===== */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9998;
+      padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500;
+      transform: translateY(80px); opacity: 0; transition: all 0.3s ease;
+      max-width: 320px; pointer-events: none;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+    #toast.error   { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    #toast.info    { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: var(--accent); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .sidebar { width: 56px; min-width: 56px; }
+      .sidebar-logo-text, .sidebar-logo-badge, .nav-link span:not(.nav-icon), .nav-badge, .live-label { display: none; }
+      .posture-metrics { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-item.full { grid-column: span 1; }
+    }
+  </style>
 </head>
 <body>
 
-    <div id="login-screen">
-        <div class="login-box">
-            <h2 style="margin-top: 0;">Admin Access</h2>
-            <input type="password" id="adminToken" placeholder="Enter ADMIN_TOKEN">
-            <button onclick="login()">Enter Dashboard</button>
-            <div id="loginError" style="color: red; font-size: 0.875rem; margin-top: 1rem; display: none;">Invalid token</div>
-        </div>
+<!-- =========================================================
+     LOGIN SCREEN
+========================================================= -->
+<div id="login-screen">
+  <div class="login-bg-grid"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">N</div>
+      <div>
+        <div class="login-logo-text">NexAPI</div>
+        <div class="login-logo-sub">Admin Control Center</div>
+      </div>
     </div>
-
-    <aside class="sidebar">
-        <a href="/" class="logo">NexAPI Admin</a>
-        <a class="nav-link active" onclick="showTab('overview')">Overview</a>
-        <a class="nav-link" onclick="showTab('visitors')">Visitors</a>
-        <a class="nav-link" onclick="showTab('logs')">Event Logs</a>
-        
-        <div style="margin-top: auto;">
-            <button onclick="sendTelegramReport()" style="background: rgba(255,255,255,0.1); margin-bottom: 1rem;">Send Report ✈️</button>
-            <button onclick="logout()" style="background: transparent; border: 1px solid rgba(255,255,255,0.2);">Logout</button>
-        </div>
-    </aside>
-
-    <main class="main-content" id="tab-overview">
-        <div class="header"><h1>Overview</h1><button onclick="fetchData()">Refresh</button></div>
-        <div class="stats-grid">
-            <div class="stat-card"><div class="stat-title">Total Visitors</div><div class="stat-value" id="s-total">-</div></div>
-            <div class="stat-card"><div class="stat-title">Allowed</div><div class="stat-value" id="s-allowed" style="color: #16a34a">-</div></div>
-            <div class="stat-card"><div class="stat-title">Suspects</div><div class="stat-value" id="s-suspect" style="color: #ca8a04">-</div></div>
-            <div class="stat-card"><div class="stat-title">Blocked</div><div class="stat-value" id="s-blocked" style="color: #dc2626">-</div></div>
-            <div class="stat-card"><div class="stat-title">Forms Submitted</div><div class="stat-value" id="s-forms">-</div></div>
-            <div class="stat-card"><div class="stat-title">Total Clicks</div><div class="stat-value" id="s-clicks">-</div></div>
-            <div class="stat-card"><div class="stat-title">Login Attempts</div><div class="stat-value" id="s-logins">-</div></div>
-        </div>
-    </main>
-
-    <main class="main-content" id="tab-visitors" style="display: none;">
-        <div class="header"><h1>Recent Visitors</h1></div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>IP / Location</th>
-                        <th>Browser / OS</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Events</th>
-                    </tr>
-                </thead>
-                <tbody id="visitors-body"></tbody>
-            </table>
-        </div>
-    </main>
-    
-    <main class="main-content" id="tab-logs" style="display: none;">
-        <div class="header"><h1>Global Event Logs</h1></div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Time</th><th>Type</th><th>Session ID</th><th>IP</th><th>Details</th></tr>
-                </thead>
-                <tbody id="logs-body"></tbody>
-            </table>
-        </div>
-    </main>
-
-    <!-- Modal Visiteur -->
-    <div id="visitorModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="m-title" style="margin-top: 0">Visitor Details</h2>
-            
-            <div class="detail-grid">
-                <div class="detail-item"><div class="detail-label">IP Address</div><div class="detail-val" id="m-ip"></div></div>
-                <div class="detail-item"><div class="detail-label">Location</div><div class="detail-val" id="m-loc"></div></div>
-                <div class="detail-item"><div class="detail-label">Network (ASN/ISP)</div><div class="detail-val" id="m-asn"></div></div>
-                <div class="detail-item"><div class="detail-label">Score & Decision</div><div class="detail-val" id="m-score"></div></div>
-                <div class="detail-item" style="grid-column: span 2"><div class="detail-label">User Agent</div><div class="detail-val" id="m-ua" style="font-family: monospace; font-size: 0.75rem;"></div></div>
-                <div class="detail-item"><div class="detail-label">Screen & Timezone</div><div class="detail-val" id="m-env"></div></div>
-                <div class="detail-item"><div class="detail-label">Stats</div><div class="detail-val" id="m-stats"></div></div>
-            </div>
-
-            <h3 style="margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Event Timeline</h3>
-            <div class="timeline" id="m-timeline"></div>
-        </div>
+    <div class="login-title">Secure Access</div>
+    <div class="login-subtitle">Enter your admin token to continue</div>
+    <div class="form-group">
+      <label class="form-label" for="adminTokenInput">Admin Token</label>
+      <input type="password" id="adminTokenInput" class="form-input" placeholder="••••••••••••"
+             autocomplete="off" spellcheck="false"
+             onkeydown="if(event.key==='Enter') login()">
     </div>
+    <button id="loginBtn" class="btn-primary" onclick="login()">
+      <span class="btn-text">Enter Dashboard →</span>
+      <span class="btn-loader">Verifying…</span>
+    </button>
+    <div id="loginError" class="login-error">⛔ Invalid token. Access denied.</div>
+  </div>
+</div>
 
-    <script>
-        let token = localStorage.getItem('adminToken') || '';
-        let refreshInterval = null;
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+<aside class="sidebar">
+  <a href="/" class="sidebar-logo">
+    <div class="sidebar-logo-icon">N</div>
+    <div>
+      <span class="sidebar-logo-text">NexAPI</span>
+      <span class="sidebar-logo-badge">ADMIN</span>
+    </div>
+  </a>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Monitoring</div>
+    <button class="nav-link active" id="nav-overview" onclick="showTab('overview', this)">
+      <span class="nav-icon">📊</span>
+      <span>Overview</span>
+    </button>
+    <button class="nav-link" id="nav-visitors" onclick="showTab('visitors', this)">
+      <span class="nav-icon">👥</span>
+      <span>Visitors</span>
+      <span class="nav-badge" id="nb-blocked" style="display:none">0</span>
+    </button>
+    <button class="nav-link" id="nav-logs" onclick="showTab('logs', this)">
+      <span class="nav-icon">📋</span>
+      <span>Event Logs</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;padding:0 0.25rem;">
+      <div class="pulse-dot"></div>
+      <span class="live-label">Live · 5s</span>
+    </div>
+    <button class="btn-sidebar btn-telegram" onclick="sendTelegramReport()">
+      <span>✈️</span><span>Send Report</span>
+    </button>
+    <button class="btn-sidebar btn-logout" onclick="logout()">
+      <span>🚪</span><span>Logout</span>
+    </button>
+  </div>
+</aside>
 
-        if (token) {
-            document.getElementById('login-screen').style.display = 'none';
-            fetchData();
-            startAutoRefresh();
-        }
+<!-- =========================================================
+     MAIN AREA
+========================================================= -->
+<div class="main-wrap">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Overview</div>
+    <div class="topbar-refresh">
+      <div class="spinner" id="spinner"></div>
+      <span id="last-refresh">—</span>
+    </div>
+    <div class="topbar-time" id="clock">—</div>
+  </div>
 
-        async function login() {
-            token = document.getElementById('adminToken').value;
-            try {
-                const res = await fetch('/api/admin/stats', { headers: headers() });
-                if (res.status === 401) {
-                    document.getElementById('loginError').style.display = 'block';
-                    return;
-                }
-                localStorage.setItem('adminToken', token);
-                document.getElementById('login-screen').style.display = 'none';
-                fetchData();
-                startAutoRefresh();
-            } catch (e) {
-                alert('Erreur réseau');
-            }
-        }
+  <div class="content-area">
 
-        function startAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            refreshInterval = setInterval(() => {
-                if (document.getElementById('tab-overview').style.display !== 'none') fetchData();
-                if (document.getElementById('tab-visitors').style.display !== 'none') fetchVisitors();
-                if (document.getElementById('tab-logs').style.display !== 'none') fetchLogs();
-            }, 5000);
-        }
+    <!-- ===== TAB: OVERVIEW ===== -->
+    <div class="tab-pane active" id="tab-overview">
 
-        function logout() {
-            localStorage.removeItem('adminToken');
-            location.reload();
-        }
+      <!-- Visitor stats from /visitors -->
+      <div class="section-header">
+        <div>
+          <div class="section-title">Visitor Statistics</div>
+          <div class="section-sub">Computed from last 200 sessions</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🌐</div>
+          <div class="stat-label">Total Sessions</div>
+          <div class="stat-value" id="s-total">—</div>
+          <div class="stat-delta">All recorded visitors</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-label">Allowed</div>
+          <div class="stat-value green" id="s-allowed">—</div>
+          <div class="stat-delta">Passed antibot checks</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-label">Suspect</div>
+          <div class="stat-value yellow" id="s-suspect">—</div>
+          <div class="stat-delta">Under monitoring</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">🚫</div>
+          <div class="stat-label">Blocked</div>
+          <div class="stat-value red" id="s-blocked">—</div>
+          <div class="stat-delta">Denied access</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value" id="s-pending">—</div>
+          <div class="stat-delta">Awaiting decision</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-icon">🖱️</div>
+          <div class="stat-label">Total Clicks</div>
+          <div class="stat-value cyan" id="s-clicks">—</div>
+          <div class="stat-delta">Across all sessions</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">📝</div>
+          <div class="stat-label">Forms Submitted</div>
+          <div class="stat-value purple" id="s-forms">—</div>
+          <div class="stat-delta">Form interactions</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon">🔑</div>
+          <div class="stat-label">Login Attempts</div>
+          <div class="stat-value orange" id="s-logins">—</div>
+          <div class="stat-delta">Auth requests</div>
+        </div>
+      </div>
 
-        const headers = () => ({ 'x-admin-token': token });
+      <!-- Antibot posture from /stats -->
+      <div class="posture-panel">
+        <div class="posture-header">
+          <div class="posture-title">🛡️ Antibot Posture</div>
+          <div class="posture-badge BALANCED" id="posture-badge">BALANCED</div>
+        </div>
+        <div class="posture-metrics">
+          <div class="posture-metric">
+            <div class="posture-metric-val" id="pm-difficulty" style="color:var(--accent)">—</div>
+            <div class="posture-metric-lbl">Difficulty Level</div>
+          </div>
+          <div class="posture-metric">
+            <div class="posture-metric-val" id="pm-window5" style="color:var(--cyan)">—</div>
+            <div class="posture-metric-lbl">Reqs / 5 min</div>
+          </div>
+          <div class="posture-metric">
+            <div class="posture-metric-val" id="pm-lasthour" style="color:var(--yellow)">—</div>
+            <div class="posture-metric-lbl">Reqs Last Hour</div>
+          </div>
+          <div class="posture-metric">
+            <div class="posture-metric-val" id="pm-posture" style="color:var(--green)">—</div>
+            <div class="posture-metric-lbl">Raw Posture</div>
+          </div>
+        </div>
+      </div>
 
-        function showTab(tabId) {
-            document.querySelectorAll('.main-content').forEach(el => el.style.display = 'none');
-            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabId).style.display = 'block';
-            event.target.classList.add('active');
-            if(tabId === 'overview') fetchData();
-            if(tabId === 'visitors') fetchVisitors();
-            if(tabId === 'logs') fetchLogs();
-        }
+    </div><!-- /tab-overview -->
 
-        async function fetchData() {
-            try {
-                const res = await fetch('/api/admin/stats', { headers: headers() });
-                if (res.status === 401) return document.getElementById('login-screen').style.display = 'flex';
-                const data = await res.json();
-                document.getElementById('s-total').innerText = data.total || 0;
-                document.getElementById('s-allowed').innerText = data.allowed || 0;
-                document.getElementById('s-suspect').innerText = data.suspect || 0;
-                document.getElementById('s-blocked').innerText = data.blocked || 0;
-                document.getElementById('s-forms').innerText = data.formSubmissions || 0;
-                document.getElementById('s-clicks').innerText = data.clicks || 0;
-                document.getElementById('s-logins').innerText = data.loginAttempts || 0;
-            } catch (e) { console.error(e); }
-        }
+    <!-- ===== TAB: VISITORS ===== -->
+    <div class="tab-pane" id="tab-visitors">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Visitor Intelligence</div>
+          <div class="section-sub" id="visitors-count">Loading…</div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-search" type="search" id="vis-search" placeholder="🔍  Filter by IP, browser, country…" oninput="renderVisitorsTable()">
+        <button class="filter-btn active" data-filter="all" onclick="setVisFilter('all',this)">All</button>
+        <button class="filter-btn" data-filter="allowed" onclick="setVisFilter('allowed',this)">✅ Allowed</button>
+        <button class="filter-btn" data-filter="suspect" onclick="setVisFilter('suspect',this)">⚠️ Suspect</button>
+        <button class="filter-btn" data-filter="blocked" onclick="setVisFilter('blocked',this)">🚫 Blocked</button>
+        <button class="filter-btn" data-filter="pending" onclick="setVisFilter('pending',this)">⏳ Pending</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>IP / Location</th>
+              <th>Browser / OS</th>
+              <th>Score</th>
+              <th>Decision</th>
+              <th>Activity</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="visitors-body"></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-visitors -->
 
-        async function fetchVisitors() {
-            try {
-                const res = await fetch('/api/admin/visitors?limit=50', { headers: headers() });
-                const data = await res.json();
-                const tbody = document.getElementById('visitors-body');
-                tbody.innerHTML = data.visitors.map(v => `
-                    <tr onclick="openVisitor('${v.id}')">
-                        <td>${new Date(v.startTime).toLocaleTimeString()}</td>
-                        <td>${v.ip}<br><small style="color:var(--text-muted)">${v.countryCode || '?'} ${v.city || ''}</small></td>
-                        <td>${v.browser} / ${v.os}</td>
-                        <td><strong>${v.score}</strong>/100</td>
-                        <td><span class="badge ${v.decision}">${v.decision}</span></td>
-                        <td>${v.events.length} evt / ${v.pages.length} pgs</td>
-                    </tr>
-                `).join('');
-            } catch (e) {}
-        }
-        
-        async function fetchLogs() {
-            try {
-                const res = await fetch('/api/admin/logs?limit=100', { headers: headers() });
-                const logs = await res.json();
-                const tbody = document.getElementById('logs-body');
-                tbody.innerHTML = logs.map(l => `
-                    <tr>
-                        <td>${new Date(l.timestamp).toLocaleTimeString()}</td>
-                        <td><span class="badge" style="background:#e2e8f0">${l.type}</span></td>
-                        <td style="font-family:monospace;font-size:0.75rem">${(l.sessionId||'').slice(0,8)}</td>
-                        <td>${l.ip}</td>
-                        <td style="font-family:monospace;font-size:0.75rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${JSON.stringify(l.data||{})}</td>
-                    </tr>
-                `).join('');
-            } catch (e) {}
-        }
+    <!-- ===== TAB: LOGS ===== -->
+    <div class="tab-pane" id="tab-logs">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Event Logs</div>
+          <div class="section-sub">Real-time antibot event stream</div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-search" type="search" id="log-search" placeholder="🔍  Filter logs…" oninput="renderLogsTable()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Session</th>
+              <th>IP</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="logs-body"></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-logs -->
 
-        async function openVisitor(id) {
-            const res = await fetch('/api/admin/visitor/' + id, { headers: headers() });
-            const v = await res.json();
-            
-            document.getElementById('m-title').innerText = `Visitor ${v.id.slice(0,8)}...`;
-            document.getElementById('m-ip').innerText = v.ip;
-            document.getElementById('m-loc').innerText = `${v.country || '?'} (${v.countryCode || '?'}) — ${v.city || '?'}, ${v.region || '?'}`;
-            document.getElementById('m-asn').innerText = `${v.asn || '?'} — ${v.isp || '?'}`;
-            document.getElementById('m-score').innerHTML = `<strong>${v.score}</strong> — <span class="badge ${v.decision}">${v.decision.toUpperCase()}</span>`;
-            document.getElementById('m-ua').innerText = v.userAgent;
-            document.getElementById('m-env').innerText = `Screen: ${v.screen||'?'} | TZ: ${v.timezone||'?'} | Lang: ${v.language||'?'}`;
-            document.getElementById('m-stats').innerText = `Clicks: ${v.clicks} | Scrolls: ${v.scrolls} | Forms: ${v.formSubmissions} | Logins: ${v.loginAttempts}`;
-            
-            const tl = document.getElementById('m-timeline');
-            let evtsHTML = '';
-            
-            // Merge pages and events for timeline
-            const allEvts = [
-                ...v.pages.map(p => ({ t: p.t, text: `Visited page: ${p.url}` })),
-                ...v.events.map(e => ({ t: e.t, text: `Event: ${e.type} ${JSON.stringify(e)}` }))
-            ].sort((a,b) => b.t - a.t);
-            
-            allEvts.forEach(e => {
-                evtsHTML += `
-                    <div class="timeline-event">
-                        <div class="timeline-time">${new Date(e.t).toLocaleTimeString()}</div>
-                        <div class="timeline-desc" style="word-break:break-all">${e.text}</div>
-                    </div>
-                `;
-            });
-            tl.innerHTML = evtsHTML;
-            
-            document.getElementById('visitorModal').style.display = 'flex';
-        }
+  </div><!-- /content-area -->
+</div><!-- /main-wrap -->
 
-        function closeModal() {
-            document.getElementById('visitorModal').style.display = 'none';
-        }
+<!-- =========================================================
+     VISITOR DETAIL MODAL
+========================================================= -->
+<div class="modal-overlay" id="visitorModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="m-title">Visitor Details</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
 
-        async function sendTelegramReport() {
-            try {
-                await fetch('/api/admin/telegram', { method: 'POST', headers: headers() });
-                alert('Report sent to Telegram!');
-            } catch (e) { alert('Error sending report'); }
-        }
+      <!-- Network & Location -->
+      <div class="m-section">
+        <div class="m-section-title">Network &amp; Location</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">IP Address</div>
+            <div class="detail-val mono" id="m-ip">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Location</div>
+            <div class="detail-val" id="m-loc">—</div>
+          </div>
+          <div class="detail-item full">
+            <div class="detail-label">ASN / ISP / Organization</div>
+            <div class="detail-val mono" id="m-asn">—</div>
+          </div>
+        </div>
+      </div>
 
-        if (token) {
-            fetchData();
-            // Auto-refresh toutes les 5 secondes
-            setInterval(() => {
-                if (document.getElementById('tab-overview').style.display !== 'none') fetchData();
-                if (document.getElementById('tab-visitors').style.display !== 'none') fetchVisitors();
-                if (document.getElementById('tab-logs').style.display !== 'none') fetchLogs();
-            }, 5000);
-        }
-    </script>
+      <!-- Score & Decision -->
+      <div class="m-section">
+        <div class="m-section-title">Risk Assessment</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Risk Score &amp; Decision</div>
+            <div class="detail-val" id="m-score">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Session Duration</div>
+            <div class="detail-val" id="m-duration">—</div>
+          </div>
+          <div class="detail-item full" id="m-reasons-wrap" style="display:none">
+            <div class="detail-label">🚨 Block Reasons</div>
+            <div id="m-reasons" class="reasons-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Browser & Environment -->
+      <div class="m-section">
+        <div class="m-section-title">Browser &amp; Environment</div>
+        <div class="detail-grid">
+          <div class="detail-item full">
+            <div class="detail-label">User Agent</div>
+            <div class="detail-val mono" id="m-ua">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Browser / OS</div>
+            <div class="detail-val" id="m-browser">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Screen / Timezone / Language</div>
+            <div class="detail-val" id="m-env">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Referrer</div>
+            <div class="detail-val mono" id="m-referrer">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Entry Page</div>
+            <div class="detail-val mono" id="m-entry">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Stats -->
+      <div class="m-section">
+        <div class="m-section-title">Activity Statistics</div>
+        <div class="stats-chips" id="m-stats"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="m-section">
+        <div class="m-section-title">Event Timeline</div>
+        <div class="timeline" id="m-timeline">
+          <div class="empty-state"><div class="empty-icon">📭</div>No events recorded</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     TOAST
+========================================================= -->
+<div id="toast"></div>
+
+<!-- =========================================================
+     SCRIPT
+========================================================= -->
+<script>
+'use strict';
+
+/* ── STATE ─────────────────────────────────────── */
+let token = localStorage.getItem('adminToken') || '';
+let refreshTimer = null;
+let allVisitors  = [];
+let allLogs      = [];
+let visFilter    = 'all';
+
+/* ── INIT ──────────────────────────────────────── */
+(function init() {
+  tickClock();
+  setInterval(tickClock, 1000);
+  if (token) attemptAutoLogin();
+})();
+
+function tickClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR');
+}
+
+async function attemptAutoLogin() {
+  /* silent pre-check with stored token */
+  try {
+    const res = await fetch('/api/admin/stats', { headers: apiHeaders() });
+    if (res.ok) {
+      hideLLoginScreen();
+      kickoff();
+    } else {
+      token = '';
+      localStorage.removeItem('adminToken');
+    }
+  } catch(e) { /* ignore, user can log in manually */ }
+}
+
+/* ── LOGIN ─────────────────────────────────────── */
+async function login() {
+  const inp = document.getElementById('adminTokenInput');
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  const candidate = inp.value.trim();
+  if (!candidate) return;
+
+  err.style.display = 'none';
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/admin/stats', {
+      headers: { 'x-admin-token': candidate }
+    });
+    if (res.ok) {
+      token = candidate;
+      localStorage.setItem('adminToken', token);
+      hideLLoginScreen();
+      kickoff();
+    } else {
+      err.style.display = 'block';
+      inp.focus(); inp.select();
+    }
+  } catch(e) {
+    showToast('Network error — is the server running?', 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function hideLLoginScreen() {
+  const s = document.getElementById('login-screen');
+  s.style.opacity = '0';
+  s.style.transition = 'opacity 0.4s';
+  setTimeout(() => s.style.display = 'none', 400);
+}
+
+function logout() {
+  localStorage.removeItem('adminToken');
+  token = '';
+  clearInterval(refreshTimer);
+  location.reload();
+}
+
+/* ── KICKOFF ───────────────────────────────────── */
+function kickoff() {
+  fetchOverview();
+  fetchVisitors();
+  fetchLogs();
+  refreshTimer = setInterval(autoRefresh, 5000);
+}
+
+function autoRefresh() {
+  if (document.getElementById('tab-overview').classList.contains('active')) fetchOverview();
+  if (document.getElementById('tab-visitors').classList.contains('active')) fetchVisitors();
+  if (document.getElementById('tab-logs').classList.contains('active')) fetchLogs();
+}
+
+/* ── API HELPERS ───────────────────────────────── */
+const apiHeaders = () => ({ 'x-admin-token': token });
+
+function setLoading(on) {
+  document.getElementById('spinner').classList.toggle('active', on);
+}
+
+function stampRefresh() {
+  document.getElementById('last-refresh').textContent =
+    'Updated ' + new Date().toLocaleTimeString('fr-FR');
+}
+
+/* ── TABS ──────────────────────────────────────── */
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  const titles = { overview: 'Overview', visitors: 'Visitor Intelligence', logs: 'Event Logs' };
+  document.getElementById('topbar-title').textContent = titles[id] || id;
+
+  if (id === 'overview') fetchOverview();
+  if (id === 'visitors') fetchVisitors();
+  if (id === 'logs')     fetchLogs();
+}
+
+/* ── OVERVIEW ──────────────────────────────────── */
+async function fetchOverview() {
+  setLoading(true);
+  try {
+    const [statsRes, visRes] = await Promise.all([
+      fetch('/api/admin/stats',          { headers: apiHeaders() }),
+      fetch('/api/admin/visitors?limit=200', { headers: apiHeaders() })
+    ]);
+
+    if (statsRes.status === 401 || visRes.status === 401) {
+      document.getElementById('login-screen').style.cssText = '';
+      return;
+    }
+
+    /* Antibot posture from /stats */
+    const stats = await statsRes.json();
+    const posture = (stats.posture || 'BALANCED').toUpperCase();
+    const badge = document.getElementById('posture-badge');
+    badge.textContent = posture;
+    badge.className = 'posture-badge ' + posture;
+    document.getElementById('pm-posture').textContent   = posture;
+    document.getElementById('pm-difficulty').textContent = stats.difficulty ?? '—';
+    document.getElementById('pm-window5').textContent   = stats.window5min  ?? '—';
+    document.getElementById('pm-lasthour').textContent  = stats.lastHour    ?? '—';
+
+    /* Visitor stats computed from /visitors */
+    const visData = await visRes.json();
+    const vis = visData.visitors || [];
+
+    let total = vis.length, allowed = 0, suspect = 0, blocked = 0, pending = 0;
+    let clicks = 0, forms = 0, logins = 0;
+
+    vis.forEach(v => {
+      const d = (v.decision || '').toLowerCase();
+      if (d === 'allowed')  allowed++;
+      else if (d === 'suspect') suspect++;
+      else if (d === 'blocked') blocked++;
+      else pending++;
+      clicks += (v.clicks || 0);
+      forms  += (v.formSubmissions || 0);
+      logins += (v.loginAttempts   || 0);
+    });
+
+    document.getElementById('s-total').textContent   = total;
+    document.getElementById('s-allowed').textContent = allowed;
+    document.getElementById('s-suspect').textContent = suspect;
+    document.getElementById('s-blocked').textContent = blocked;
+    document.getElementById('s-pending').textContent = pending;
+    document.getElementById('s-clicks').textContent  = clicks;
+    document.getElementById('s-forms').textContent   = forms;
+    document.getElementById('s-logins').textContent  = logins;
+
+    /* Update blocked badge in sidebar */
+    const nb = document.getElementById('nb-blocked');
+    if (blocked > 0) { nb.textContent = blocked; nb.style.display = ''; }
+    else { nb.style.display = 'none'; }
+
+    stampRefresh();
+  } catch(e) { console.error('fetchOverview', e); }
+  finally { setLoading(false); }
+}
+
+/* ── VISITORS ──────────────────────────────────── */
+async function fetchVisitors() {
+  setLoading(true);
+  try {
+    const res = await fetch('/api/admin/visitors?limit=200', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    allVisitors = data.visitors || [];
+    renderVisitorsTable();
+    stampRefresh();
+  } catch(e) { console.error('fetchVisitors', e); }
+  finally { setLoading(false); }
+}
+
+function setVisFilter(f, btn) {
+  visFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.remove('active','active-red','active-yellow','active-green');
+  });
+  if (btn) {
+    const cls = f === 'blocked' ? 'active-red' : f === 'suspect' ? 'active-yellow' : f === 'allowed' ? 'active-green' : 'active';
+    btn.classList.add(cls);
+  }
+  renderVisitorsTable();
+}
+
+function renderVisitorsTable() {
+  const q = (document.getElementById('vis-search').value || '').toLowerCase();
+  let rows = allVisitors;
+
+  if (visFilter !== 'all') rows = rows.filter(v => (v.decision||'').toLowerCase() === visFilter);
+  if (q) rows = rows.filter(v =>
+    (v.ip||'').includes(q) || (v.browser||'').toLowerCase().includes(q) ||
+    (v.os||'').toLowerCase().includes(q) || (v.country||'').toLowerCase().includes(q) ||
+    (v.countryCode||'').toLowerCase().includes(q) || (v.city||'').toLowerCase().includes(q)
+  );
+
+  const subCount = document.getElementById('visitors-count');
+  subCount.textContent = rows.length + ' visitor' + (rows.length !== 1 ? 's' : '') + ' shown';
+
+  if (!rows.length) {
+    document.getElementById('visitors-body').innerHTML =
+      '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🔍</div>No visitors match this filter</div></td></tr>';
+    return;
+  }
+
+  document.getElementById('visitors-body').innerHTML = rows.map(v => {
+    const dec = (v.decision || 'pending').toLowerCase();
+    const sc  = v.score ?? 0;
+    const scoreColor = sc >= 70 ? 'var(--red)' : sc >= 40 ? 'var(--yellow)' : 'var(--green)';
+    const dur = formatDuration(v.startTime, v.lastSeen || v.startTime);
+    const evts = (v.events || []).length;
+    const pgs  = (v.pages  || []).length;
+    return `
+    <tr onclick="openVisitor('${esc(v.id)}')">
+      <td style="white-space:nowrap">
+        <div style="font-size:0.82rem">${fmtTime(v.startTime)}</div>
+        <div style="font-size:0.7rem;color:var(--text-dim)">${fmtDate(v.startTime)}</div>
+      </td>
+      <td>
+        <div class="ip-cell">${esc(v.ip || '—')}</div>
+        <div class="loc-cell">${[v.countryCode, v.city, v.region].filter(Boolean).join(' · ') || '—'}</div>
+      </td>
+      <td>
+        <div class="browser-cell">${esc(v.browser || '—')}</div>
+        <div class="os-cell">${esc(v.os || '—')}</div>
+      </td>
+      <td>
+        <div class="score-bar-wrap">
+          <span class="score-num" style="color:${scoreColor}">${sc}</span>
+          <div class="score-bar"><div class="score-fill" style="width:${sc}%;background:${scoreColor}"></div></div>
+        </div>
+      </td>
+      <td><span class="badge ${dec}">${dec}</span></td>
+      <td style="font-size:0.78rem;color:var(--text-muted)">
+        ${evts} evt · ${pgs} pg<br>
+        <span style="color:var(--text-dim)">${v.clicks||0} clk · ${v.formSubmissions||0} frm</span>
+      </td>
+      <td style="font-size:0.78rem;color:var(--text-muted)">${dur}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── LOGS ──────────────────────────────────────── */
+async function fetchLogs() {
+  setLoading(true);
+  try {
+    const res = await fetch('/api/admin/logs?limit=200', { headers: apiHeaders() });
+    if (!res.ok) return;
+    allLogs = await res.json();
+    renderLogsTable();
+    stampRefresh();
+  } catch(e) { console.error('fetchLogs', e); }
+  finally { setLoading(false); }
+}
+
+function renderLogsTable() {
+  const q = (document.getElementById('log-search').value || '').toLowerCase();
+  let rows = allLogs;
+  if (q) rows = rows.filter(l =>
+    (l.type||'').toLowerCase().includes(q) ||
+    (l.ip||'').includes(q) ||
+    (l.sessionId||'').includes(q) ||
+    JSON.stringify(l.data||{}).toLowerCase().includes(q)
+  );
+
+  if (!rows.length) {
+    document.getElementById('logs-body').innerHTML =
+      '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📭</div>No logs available</div></td></tr>';
+    return;
+  }
+
+  document.getElementById('logs-body').innerHTML = rows.map(l => `
+    <tr>
+      <td style="white-space:nowrap;font-size:0.78rem;font-family:'JetBrains Mono',monospace">${fmtTime(l.timestamp)}</td>
+      <td><span class="badge log-type">${esc(l.type || '?')}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text-muted)">${esc((l.sessionId||'').slice(0,10))}</td>
+      <td class="ip-cell">${esc(l.ip || '—')}</td>
+      <td class="log-details">${esc(JSON.stringify(l.data || {}))}</td>
+    </tr>
+  `).join('');
+}
+
+/* ── VISITOR MODAL ─────────────────────────────── */
+async function openVisitor(id) {
+  try {
+    const res = await fetch('/api/admin/visitor/' + id, { headers: apiHeaders() });
+    if (!res.ok) { showToast('Could not load visitor data', 'error'); return; }
+    const v = await res.json();
+    populateModal(v);
+    document.getElementById('visitorModal').classList.add('open');
+  } catch(e) { showToast('Network error', 'error'); }
+}
+
+function closeModal() {
+  document.getElementById('visitorModal').classList.remove('open');
+}
+
+/* Click outside to close */
+document.getElementById('visitorModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* Escape key */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function populateModal(v) {
+  const dec = (v.decision || 'pending').toLowerCase();
+  const sc  = v.score ?? 0;
+  const scoreColor = sc >= 70 ? 'var(--red)' : sc >= 40 ? 'var(--yellow)' : 'var(--green)';
+
+  /* Header */
+  document.getElementById('m-title').innerHTML =
+    `<span class="badge ${dec}">${dec}</span> ${esc((v.id||'').slice(0,12))}…`;
+
+  /* Network */
+  document.getElementById('m-ip').textContent  = v.ip || '—';
+  document.getElementById('m-loc').textContent =
+    [v.country, v.countryCode ? `(${v.countryCode})` : null, v.city, v.region]
+      .filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-asn').textContent =
+    [v.asn, v.isp, v.org].filter(Boolean).join(' · ') || '—';
+
+  /* Score */
+  document.getElementById('m-score').innerHTML = `
+    <div class="score-display">
+      <div class="score-circle" style="color:${scoreColor};border-color:${scoreColor}">
+        ${sc}
+      </div>
+      <div>
+        <span class="badge ${dec}">${dec.toUpperCase()}</span>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">
+          Risk: ${sc >= 70 ? '🔴 High' : sc >= 40 ? '🟡 Medium' : '🟢 Low'}
+        </div>
+      </div>
+    </div>`;
+
+  /* Duration */
+  document.getElementById('m-duration').textContent =
+    formatDuration(v.startTime, v.lastSeen || v.startTime);
+
+  /* Block reasons */
+  const reasons = v.blockReasons || v.reasons || [];
+  const rWrap = document.getElementById('m-reasons-wrap');
+  const rDiv  = document.getElementById('m-reasons');
+  if (reasons.length) {
+    rWrap.style.display = '';
+    rDiv.innerHTML = reasons.map(r =>
+      `<span class="reason-tag">⚠️ ${esc(String(r))}</span>`
+    ).join('');
+  } else {
+    rWrap.style.display = 'none';
+  }
+
+  /* Browser & env */
+  document.getElementById('m-ua').textContent      = v.userAgent || '—';
+  document.getElementById('m-browser').textContent = [v.browser, v.os].filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-env').textContent     =
+    [v.screen ? `🖥 ${v.screen}` : null,
+     v.timezone ? `🕐 ${v.timezone}` : null,
+     v.language ? `🌐 ${v.language}` : null]
+      .filter(Boolean).join('  ') || '—';
+  document.getElementById('m-referrer').textContent = v.referrer || '(direct)';
+  document.getElementById('m-entry').textContent    = (v.pages || [])[0]?.url || '—';
+
+  /* Stats chips */
+  const chips = [
+    { val: v.clicks        || 0, lbl: 'Clicks' },
+    { val: v.scrolls       || 0, lbl: 'Scrolls' },
+    { val: v.formSubmissions||0, lbl: 'Forms' },
+    { val: v.loginAttempts || 0, lbl: 'Logins' },
+    { val: v.jsErrors      || 0, lbl: 'JS Errors' },
+    { val: (v.pages||[]).length, lbl: 'Pages' },
+    { val: (v.events||[]).length, lbl: 'Events' },
+  ];
+  document.getElementById('m-stats').innerHTML = chips.map(c =>
+    `<div class="stat-chip">
+      <span class="stat-chip-val">${c.val}</span>
+      <span class="stat-chip-lbl">${c.lbl}</span>
+    </div>`
+  ).join('');
+
+  /* Timeline */
+  buildTimeline(v);
+}
+
+function buildTimeline(v) {
+  const pages  = (v.pages  || []).map(p => ({ t: p.t || p.timestamp || 0, type: 'page', data: p }));
+  const events = (v.events || []).map(e => ({ t: e.t || e.timestamp || 0, type: e.type || 'event', data: e }));
+
+  const all = [...pages, ...events].sort((a, b) => (a.t || 0) - (b.t || 0));
+
+  if (!all.length) {
+    document.getElementById('m-timeline').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">📭</div>No events recorded</div>';
+    return;
+  }
+
+  document.getElementById('m-timeline').innerHTML = all.map(ev => {
+    let dotCls = 'tl-dot';
+    let icon = '·';
+    let desc = '';
+    let sub  = '';
+
+    if (ev.type === 'page') {
+      dotCls += ' page'; icon = '📄';
+      desc = 'Page visit: ' + esc(ev.data.url || ev.data.path || '—');
+      if (ev.data.title) sub = ev.data.title;
+    } else if (ev.type === 'click') {
+      icon = '🖱️'; desc = 'Click';
+      if (ev.data.target) sub = 'on ' + esc(ev.data.target);
+    } else if (ev.type === 'form' || ev.type === 'formSubmit' || ev.type === 'form_submit') {
+      dotCls += ' form'; icon = '📝'; desc = 'Form submitted';
+      if (ev.data.formId || ev.data.action) sub = esc(ev.data.formId || ev.data.action || '');
+    } else if (ev.type === 'login' || ev.type === 'loginAttempt') {
+      dotCls += ' login'; icon = '🔑'; desc = 'Login attempt';
+      if (ev.data.username || ev.data.email) sub = esc(ev.data.username || ev.data.email || '');
+    } else if (ev.type === 'blocked' || ev.type === 'block') {
+      dotCls += ' block'; icon = '🚫'; desc = 'Access blocked';
+      if (ev.data.reason) sub = esc(ev.data.reason);
+    } else if (ev.type === 'jsError' || ev.type === 'js_error') {
+      dotCls += ' error'; icon = '❌'; desc = 'JavaScript error';
+      if (ev.data.message) sub = esc(ev.data.message);
+    } else if (ev.type === 'scroll') {
+      icon = '↕️'; desc = 'Scroll';
+      if (ev.data.depth !== undefined) sub = 'Depth: ' + ev.data.depth + '%';
+    } else {
+      desc = describeEvent(ev.type, ev.data);
+    }
+
+    return `
+    <div class="tl-event">
+      <div class="${dotCls}"></div>
+      <div class="tl-time">${fmtFullTime(ev.t)}</div>
+      <div class="tl-desc">${icon} ${desc}</div>
+      ${sub ? `<div class="tl-sub">${sub}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function describeEvent(type, data) {
+  const labels = {
+    mousemove: 'Mouse movement',
+    keydown:   'Key pressed',
+    focus:     'Input focused',
+    blur:      'Input blurred',
+    copy:      'Content copied',
+    paste:     'Content pasted',
+    resize:    'Window resized',
+    visibilitychange: 'Tab visibility changed',
+    beacon:    'Beacon sent',
+  };
+  return esc(labels[type] || ('Event: ' + type));
+}
+
+/* ── TELEGRAM ──────────────────────────────────── */
+async function sendTelegramReport() {
+  try {
+    const res = await fetch('/api/admin/telegram', { method: 'POST', headers: apiHeaders() });
+    if (res.ok) showToast('✈️ Report sent to Telegram!', 'success');
+    else showToast('Failed to send report', 'error');
+  } catch(e) { showToast('Network error', 'error'); }
+}
+
+/* ── UTILS ─────────────────────────────────────── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function fmtDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString('fr-FR');
+}
+
+function fmtFullTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('fr-FR');
+}
+
+function formatDuration(start, end) {
+  if (!start) return '—';
+  const ms = Math.max(0, (end || start) - start);
+  if (ms < 1000) return '<1s';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60), rs = s % 60;
+  if (m < 60) return `${m}m ${rs}s`;
+  return `${Math.floor(m/60)}h ${m%60}m`;
+}
+
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
 </body>
 </html>
