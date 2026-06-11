@@ -34,6 +34,17 @@ const visitorTracker = (req, res, next) => {
             referer,
             url: req.path,
         });
+
+        // Timeout pour les bots sans exécution JS (Scrapers)
+        setTimeout(() => {
+            const v = visitors.getVisitor(sessionId);
+            if (v && v.decision === 'pending') {
+                v.decision = 'blocked';
+                v.score = 0;
+                v.reasons.push('A échoué à charger le test (Bot sans JavaScript ou délai expiré)');
+                require('../controllers/telegramController').notifySuspect(v).catch(() => {});
+            }
+        }, 15000);
     }
 
     // Enregistrer la page visitée

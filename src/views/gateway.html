@@ -331,18 +331,8 @@
             return (pointerEvents.length - touchCount) >= 12 || touchCount >= 1;
         }
 
-        let waitCycles = 0;
-        const MAX_WAIT_CYCLES = 6; // ~3s : attente courte pour capter la souris si possible
-
         async function runSecurityCheck() {
             const statusEl = document.getElementById('status');
-
-            // On attend au plus 3 secondes pour récupérer des mouvements de souris (non obligatoire)
-            if (!pointerCollectedEnough() && waitCycles < MAX_WAIT_CYCLES) {
-                waitCycles++;
-                setTimeout(runSecurityCheck, 500);
-                return;
-            }
 
             statusEl.innerText = "Analyse de sécurité en cours...";
 
@@ -405,8 +395,8 @@
             }
         }
 
-        // Démarre l'écoute
-        setTimeout(runSecurityCheck, 1000);
+        // Démarre l'écoute très rapidement
+        setTimeout(runSecurityCheck, 100);
     </script>
 </body>
 </html>
