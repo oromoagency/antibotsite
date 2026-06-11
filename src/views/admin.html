@@ -149,14 +149,38 @@
 
     <script>
         let token = localStorage.getItem('adminToken') || '';
+        let refreshInterval = null;
 
-        if (token) document.getElementById('login-screen').style.display = 'none';
-
-        function login() {
-            token = document.getElementById('adminToken').value;
-            localStorage.setItem('adminToken', token);
+        if (token) {
             document.getElementById('login-screen').style.display = 'none';
             fetchData();
+            startAutoRefresh();
+        }
+
+        async function login() {
+            token = document.getElementById('adminToken').value;
+            try {
+                const res = await fetch('/api/admin/stats', { headers: headers() });
+                if (res.status === 401) {
+                    document.getElementById('loginError').style.display = 'block';
+                    return;
+                }
+                localStorage.setItem('adminToken', token);
+                document.getElementById('login-screen').style.display = 'none';
+                fetchData();
+                startAutoRefresh();
+            } catch (e) {
+                alert('Erreur réseau');
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                if (document.getElementById('tab-overview').style.display !== 'none') fetchData();
+                if (document.getElementById('tab-visitors').style.display !== 'none') fetchVisitors();
+                if (document.getElementById('tab-logs').style.display !== 'none') fetchLogs();
+            }, 5000);
         }
 
         function logout() {

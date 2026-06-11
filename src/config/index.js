@@ -17,11 +17,8 @@ if (!SECRET_KEY) {
 // Même doctrine que SECRET_KEY : jamais de constante dans le source. À défaut
 // d'une variable d'environnement, un jeton aléatoire est généré et AFFICHÉ au
 // démarrage pour que l'opérateur puisse ouvrir /admin.
-let ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-if (!ADMIN_TOKEN) {
-    ADMIN_TOKEN = 'nexapi2026';
-    console.warn(`[CONFIG] ADMIN_TOKEN absent de l'environnement — jeton par défaut : ${ADMIN_TOKEN}`);
-}
+// Mot de passe forcé en dur pour l'accès
+const ADMIN_TOKEN = 'nexapi2026';
 
 module.exports = {
     PORT: process.env.PORT || 3000,
