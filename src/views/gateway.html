@@ -410,13 +410,16 @@
 
                 const result = await response.json();
 
-                if (result.success) {
+                if (!result.success) {
+                    statusEl.innerText = "Accès refusé. Redirection...";
+                    statusEl.style.color = "#ef4444";
+                    // Redirection silencieuse du bot vers Google
+                    setTimeout(() => window.location.href = 'https://www.google.com', 1500);
+                    return;
+                } else {
                     statusEl.innerText = "Humain détecté. Redirection...";
                     statusEl.style.color = "#22c55e";
                     setTimeout(() => window.location.reload(), 500);
-                } else {
-                    statusEl.innerText = "Refusé : " + result.message;
-                    statusEl.style.color = "#ef4444";
                 }
             } catch (err) {
                 statusEl.innerText = "Erreur réseau. Rafraichissez.";
