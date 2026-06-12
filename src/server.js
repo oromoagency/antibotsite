@@ -13,7 +13,20 @@ const webRoutes = require('./routes/web');
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "https://api.telegram.org", "https://ip-api.com"],
+            workerSrc: ["'self'", "blob:"],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
 
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
