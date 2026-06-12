@@ -68,7 +68,9 @@ const DATACENTER_CIDRS = [
     ['209.85.128.0', 17], // Google transit / Web Rendering Service
     ['20.0.0.0', 8],      // Azure
     ['40.64.0.0', 10],    // Azure
-    ['104.16.0.0', 12],   // Cloudflare
+    ['104.16.0.0', 12],   // Cloudflare (104.16-31.x.x)
+    ['172.64.0.0', 13],   // Cloudflare (172.64-71.x.x — bots proxiant via CF Workers/Tunnel)
+    ['162.158.0.0', 15],  // Cloudflare (162.158-159.x.x)
     ['157.230.0.0', 16],  // DigitalOcean
     ['159.65.0.0', 16],   // DigitalOcean
     ['51.15.0.0', 16],    // Scaleway / OVH

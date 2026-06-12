@@ -28,10 +28,14 @@ const TELEPORT_PENALTY = -70;
 const STRAIGHT_LINE_PENALTY = -60;    // trajectoire parfaitement linéaire (VLM sans Bézier)
 const SYNTHETIC_INJECT_PENALTY = -50; // inject CDP sans pointerdown OU pression nulle
 
-// -85 (rapport bots #3) : score 15 → BAN. Un bot qui n'interagit pas du tout
-// est un script HTTP brut — il ne DOIT PAS pouvoir réessayer en boucle.
-// L'ancien -60 (score 40) = BLOCK sans ban = retry infini possible.
-const NO_INTERACTION_PENALTY = 0;
+// -50 : un bot qui arrive sur la gateway, exécute le JS (sinon il serait bloqué
+// par le timeout 15s), mais ne produit AUCUNE interaction (souris, tactile, clavier)
+// est quasi-certain d'être un automate. -50 garantit que, combiné à 1 seul autre
+// témoin (CDP trap, datacenter, renderer logiciel), le score passe sous 60 et la
+// session est bloquée même sans atteindre le seuil de ban.
+// Anti-FP : un utilisateur clavier-seul (accessibilité) produit forcément ≥ 5 touches
+// sur 2-3 secondes de minage — il prend le chemin MISSING_POINTER (-5), pas celui-ci.
+const NO_INTERACTION_PENALTY = -50;
 // -5 et non -45 (revue) : la navigation au clavier seul est un schéma
 // d'ACCESSIBILITÉ légitime (lecteur d'écran NVDA/JAWS, handicap moteur). Couplée
 // à un navigateur durci (Tor farble le hardware → -20 en L4), l'ancien -20
