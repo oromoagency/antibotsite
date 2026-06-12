@@ -6,6 +6,45 @@
 const crypto = require('crypto-js');
 const reputation = require('../store/reputation');
 
+// ============================================================
+// WHITELIST — IPs/ASNs de confiance, jamais bloqués
+// ============================================================
+const WHITELIST_IPS  = new Set();  // IPs exactes en whitelist
+const WHITELIST_ASNS = new Set();  // ASNs en whitelist (ex: 'AS36974')
+
+// Whitelist permanente du propriétaire (MTN Côte d'Ivoire)
+WHITELIST_ASNS.add('AS36974'); // AS36974 MTN COTE D'IVOIRE S.A
+
+const addToWhitelist = (value) => {
+    if (!value) return;
+    const v = String(value).trim().toUpperCase();
+    if (v.startsWith('AS')) { WHITELIST_ASNS.add(v); return 'asn'; }
+    WHITELIST_IPS.add(v);
+    return 'ip';
+};
+
+const removeFromWhitelist = (value) => {
+    const v = String(value).trim().toUpperCase();
+    if (v.startsWith('AS')) { WHITELIST_ASNS.delete(v); return; }
+    WHITELIST_IPS.delete(v);
+};
+
+const isWhitelisted = (ip, asn) => {
+    if (ip && WHITELIST_IPS.has(String(ip).trim())) return true;
+    if (asn) {
+        // L'ASN peut être au format 'AS36974 MTN...' — on extrait juste 'AS36974'
+        const asnCode = String(asn).trim().split(' ')[0].toUpperCase();
+        if (WHITELIST_ASNS.has(asnCode)) return true;
+    }
+    return false;
+};
+
+const getWhitelist = () => ({
+    ips: [...WHITELIST_IPS],
+    asns: [...WHITELIST_ASNS],
+});
+
+
 // -15 (revue faux-positifs) : le rapport de menace acte que « le blocage IP
 // traditionnel est obsolète ». Cloudflare WARP, iCloud Private Relay et les
 // egress d'entreprise font sortir des HUMAINS par des IP datacenter. Signal
@@ -69,7 +108,10 @@ const isDatacenter = (ip) => {
 
 // Middleware : barrière dure pour les IP temporairement bannies.
 const middleware = (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection.remoteAddress || '');
+    // Whitelist : jamais bloqué, jamais redirigé
+    if (isWhitelisted(ip)) return next();
     if (reputation.isBanned(ip)) {
         console.log(`[L2_ACCESS] IP bannie temporairement: ${ip}`);
         if (req.method === 'GET' && !req.path.startsWith('/api')) {
@@ -144,4 +186,4 @@ const analyze = ({ ip, fingerprint }) => {
     return { score, reasons };
 };
 
-module.exports = { middleware, analyze, isDatacenter, DATACENTER_CIDRS, DATACENTER_PENALTY, VELOCITY_TIERS_FP, VELOCITY_TIERS_IP };
+module.exports = { middleware, analyze, isDatacenter, isWhitelisted, addToWhitelist, removeFromWhitelist, getWhitelist, DATACENTER_CIDRS, DATACENTER_PENALTY, VELOCITY_TIERS_FP, VELOCITY_TIERS_IP };
