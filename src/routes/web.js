@@ -21,13 +21,9 @@ const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW
     if (req.path.startsWith('/admin')) return next();
 
-    // Bot déclaré (UA Googlebot, curl, GPTBot…) → voie accessible avec suspicion max
-    // au lieu de redirection Google (Règle 1 : aucune porte).
-    if (req.l1Signals && req.l1Signals.declarative) {
-        console.log(`[PRISM] Bot déclaré (${req.headers['user-agent'] || '?'}), voie accessible — IP: ${req.ip}`);
-        req.prismaForced = { suspicion: 1.0, lane: 'accessible', reason: 'declarative_bot' };
-        return next(); // on laisse passer — le contenu sera réfracté
-    }
+    // ZÉRO CONFIANCE ABSOLUE : La "Voie Accessible" a été retirée à la demande de l'administrateur.
+    // Un bot qui se déclare honnête (Googlebot, curl, etc.) ne reçoit plus aucun traitement de faveur.
+    // Il devra passer le test de PoW et de Biométrie. Puisqu'il en est incapable, il sera bloqué.
 
     const ip = req.ip || '';
     const visitor = req.visitorId ? require('../store/visitors').getVisitor(req.visitorId) : null;
