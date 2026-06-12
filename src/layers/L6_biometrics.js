@@ -24,38 +24,16 @@ const MIN_KEYSTROKES = 5;
 
 const MAX_HUMAN_STEP_PX = 300;  // distance max plausible entre deux échantillons rapprochés
 const TELEPORT_MAX_DT_MS = 50;  // au-delà : trou d'échantillonnage (jank), pas une téléportation
-const TELEPORT_PENALTY = -70;
-const STRAIGHT_LINE_PENALTY = -60;    // trajectoire parfaitement linéaire (VLM sans Bézier)
-const SYNTHETIC_INJECT_PENALTY = -50; // inject CDP sans pointerdown OU pression nulle
-
-// -50 : un bot qui arrive sur la gateway, exécute le JS (sinon il serait bloqué
-// par le timeout 15s), mais ne produit AUCUNE interaction (souris, tactile, clavier)
-// est quasi-certain d'être un automate. -50 garantit que, combiné à 1 seul autre
-// témoin (CDP trap, datacenter, renderer logiciel), le score passe sous 60 et la
-// session est bloquée même sans atteindre le seuil de ban.
-// Anti-FP : un utilisateur clavier-seul (accessibilité) produit forcément ≥ 5 touches
-// sur 2-3 secondes de minage — il prend le chemin MISSING_POINTER (-5), pas celui-ci.
-const NO_INTERACTION_PENALTY = -50;
-// -5 et non -45 (revue) : la navigation au clavier seul est un schéma
-// d'ACCESSIBILITÉ légitime (lecteur d'écran NVDA/JAWS, handicap moteur). Couplée
-// à un navigateur durci (Tor farble le hardware → -20 en L4), l'ancien -20
-// bloquait un aveugle (100-20-20=60... puis sous le seuil avec tout cumul).
-// Signal très faible : seul, il ne pèse presque rien ; la frappe variée prouve l'humain.
-const MISSING_POINTER_PENALTY = -5;   // clavier ok mais aucun pointeur (clavier-seul = accessibilité)
-// -45 (rapport bots #3) : score 55 → BLOCK (non BAN, retryable). Un bot avec
-// fausse trajectoire souris mais sans frappe clavier score 55 < seuil 60.
-// Un humain qui ne tape pas après 8s le retry et tape. MISSING_POINTER (-5)
-// inchangé : l'accessibilité prime sur la détection dans ce cas précis.
-const MISSING_KEYBOARD_PENALTY = 0;
-const SMOOTHED_PENALTY = -80;         // jerk nul : trajectoire générée
-const FLAT_CADENCE_PENALTY = -40;     // dwell times identiques : frappe injectée
-// Frappe surhumaine (rapport bots #3 : « interactions trop rapides pour être
-// humaines ») : temps de vol moyen < 8 ms entre touches. Un dactylo de
-// compétition descend à ~50 ms ; le rollover (touche suivante pressée avant
-// le relâchement de la précédente) donne des vols NÉGATIFS de -20 à -60 ms —
-// d'où la moyenne sur |vol| : même un humain ultra-rapide reste > 20 ms.
-// Seule une boucle d'injection (dispatchKeyEvent en rafale) tombe sous 8 ms.
-const SUPERHUMAN_TYPING_PENALTY = -40;
+const { L6: _T } = require('../config/tuning');
+const TELEPORT_PENALTY          = _T.teleport;
+const STRAIGHT_LINE_PENALTY     = _T.straightLine;
+const SYNTHETIC_INJECT_PENALTY  = _T.syntheticInject;
+const NO_INTERACTION_PENALTY    = _T.noInteraction;
+const MISSING_POINTER_PENALTY   = _T.missingPointer;
+const MISSING_KEYBOARD_PENALTY  = _T.missingKeyboard;
+const SMOOTHED_PENALTY          = _T.smoothed;
+const FLAT_CADENCE_PENALTY      = _T.flatCadence;
+const SUPERHUMAN_TYPING_PENALTY = _T.superhumanTyping;
 const MIN_HUMAN_FLIGHT_MS = 8;
 
 const splitByPointerType = (trajectory) => {

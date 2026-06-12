@@ -7,13 +7,11 @@
 // bannissait des humains derrière un proxy mal configuré) : il dépose un
 // signal de score dans req.l1Signals que l'orchestrateur agrège.
 
-// Pénalités allégées (revue faux-positifs) : ces deux signaux se déclenchent
-// AUSSI pour des proxys/CDN légitimes qui normalisent les headers d'humains.
-// Cumulés (-30) ils ne franchissent jamais le seuil de blocage seuls.
+const { L1: _T } = require('../config/tuning');
 const PENALTIES = {
-    headerOrder: -15,   // Host pas en premier : scripts bruts… mais aussi certains proxys
-    uaCasing: -15,      // casse "user-agent" en HTTP/1.x : librairies HTTP, mais proxys aussi
-    knownBotUA: -100,   // bot s'auto-identifie — aucun navigateur humain ne contient ces chaînes
+    headerOrder: _T.headerOrder,
+    uaCasing:    _T.uaCasing,
+    knownBotUA:  _T.knownBotUa,
 };
 
 // Bots qui s'auto-identifient dans leur User-Agent (vérification insensible à la casse).

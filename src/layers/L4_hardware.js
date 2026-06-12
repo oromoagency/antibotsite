@@ -32,22 +32,14 @@ const HEADLESS_RENDERERS = ['swiftshader', 'google swiftshader', 'angle (softwar
 const VDI_RENDERERS = ['llvmpipe', 'softpipe', 'mesa offscreen', 'microsoft basic render'];
 const SOFTWARE_RENDERERS = [...HEADLESS_RENDERERS, ...VDI_RENDERERS];
 
-const HEADLESS_RENDERER_PENALTY = -35;
-const VDI_RENDERER_PENALTY = -25;
-
-const ABSENCE_PENALTIES = { webgl: -15, canvas: -10, audio: -10 };
-// Plafond -20 (revue) : un navigateur vie-privée + un VPN datacenter (-15 en L2)
-// reste sous le seuil de blocage (100-20-15=65 ≥ 60). Brave/Tor/RFP qui farblent
-// les TROIS signaux d'un coup ne doivent jamais être bloqués par ce seul fait.
-const ABSENCE_CAP = -20;
-const SENSOR_DESYNC_PENALTY = -100;      // preuve : injection JS d'événements d'entrée
-const INCOMPLETE_FP_PENALTY = -20;       // payload malformé
-// Camoufox (modification C++ de Firefox, 2025-2026) désactive WebGPU car
-// impossible à spoofer au niveau source sans artefacts détectables.
-// Actif uniquement sur Chrome ≥113 avec WebGL fonctionnel : cette combinaison
-// (UA Chrome moderne + WebGL OK + WebGPU absent) est quasi impossible pour un
-// humain réel (WebGPU est activé par défaut depuis Chrome 113).
-const WEBGPU_ABSENT_PENALTY = -20;
+const { L4: _T } = require('../config/tuning');
+const HEADLESS_RENDERER_PENALTY = _T.headlessRenderer;
+const VDI_RENDERER_PENALTY      = _T.vdiRenderer;
+const ABSENCE_PENALTIES         = _T.absence;
+const ABSENCE_CAP               = _T.absence.cap;
+const SENSOR_DESYNC_PENALTY     = _T.sensorDesync;
+const INCOMPLETE_FP_PENALTY     = _T.incompleteFp;
+const WEBGPU_ABSENT_PENALTY     = _T.webgpuAbsent;
 
 // Retourne { score, reasons }
 const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint }) => {

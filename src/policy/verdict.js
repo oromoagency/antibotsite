@@ -21,9 +21,10 @@
 // (GPU logiciel d'un poste RDP, webdriver d'un outil d'accessibilité…) ne peut
 // plus jamais déclencher de bannissement à lui seul.
 
-const TRUST_THRESHOLD = 60;   // sous ce score : accès refusé (403)
-const STRIKE_THRESHOLD = 20;  // sous ce score : ban possible SI corroboration
-const SIGNIFICANT_SIGNAL = -15; // contribution minimale pour compter comme témoin
+const { verdict: T } = require('../config/tuning');
+const TRUST_THRESHOLD    = T.trustThreshold;
+const STRIKE_THRESHOLD   = T.strikeThreshold;
+const SIGNIFICANT_SIGNAL = T.significantSignal;
 
 // layerResults : tableau de { score, reasons, declarative? } (entrées null/undefined ignorées).
 // IMPORTANT : une COUCHE = une entrée = un témoin. Si une couche logique est éclatée

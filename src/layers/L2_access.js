@@ -42,13 +42,8 @@ const getWhitelist = () => ({
 });
 
 
-// -15 (revue faux-positifs) : le rapport de menace acte que « le blocage IP
-// traditionnel est obsolète ». Cloudflare WARP, iCloud Private Relay et les
-// egress d'entreprise font sortir des HUMAINS par des IP datacenter. Signal
-// volontairement FAIBLE : il ne doit jamais, même cumulé avec un navigateur
-// vie-privée (-20 en L4), franchir le seuil (100-15-20=65 ≥ 60). Les vrais
-// bots datacenter sont attrapés par L4/L5/L6, pas par l'IP.
-const DATACENTER_PENALTY = -15;
+const { L2: _T } = require('../config/tuning');
+const DATACENTER_PENALTY = _T.datacenter;
 
 // Plages CIDR datacenter représentatives. Sous-ensemble volontairement court :
 // en production, charger les listes publiées (AWS ip-ranges.json, GCP, Azure...).
