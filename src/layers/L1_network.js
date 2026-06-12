@@ -127,7 +127,7 @@ const analyze = (req, res, next) => {
     }
 
     if (reasons.length > 0) {
-        console.log(`[L1_NETWORK] ${reasons.join(' | ')} (score ${score}). IP: ${req.ip || req.connection.remoteAddress}`);
+        console.log(`[L1_NETWORK] ${reasons.join(' | ')} (score ${score}). IP: ${req.ip || req.socket.remoteAddress}`);
     }
 
     req.l1Signals = { score, reasons, declarative };

@@ -90,6 +90,12 @@ exports.verifyChallenge = async (req, res) => {
             .json({ success: false, message: malformed ? 'Requête invalide.' : 'Vérification échouée.' });
     }
 
+    // Préfixe chaque raison d'une couche avec son étiquette [Lx-Nom] pour que
+    // les logs, Telegram et le dashboard admin indiquent QUELLE couche a détecté quoi.
+    const tag = (result, label) => result
+        ? { ...result, reasons: (result.reasons || []).map(r => `[${label}] ${r}`) }
+        : result;
+
     // --- L1 : signaux réseau (middleware) + TLS, FUSIONNÉS en UN SEUL témoin ---
     // (revue : L1_network et L1_tls sont deux spécialités de la MÊME couche L1 ;
     //  les passer séparément les compterait pour 2 témoins et violerait la doctrine.)
@@ -98,52 +104,81 @@ exports.verifyChallenge = async (req, res) => {
         userAgent: (fingerprint && fingerprint.userAgent) || req.headers['user-agent'],
     });
     const net = req.l1Signals || { score: 0, reasons: [], declarative: false };
-    const l1 = {
+    const l1 = tag({
         score: (net.score || 0) + (tls.score || 0),
         reasons: [...(net.reasons || []), ...(tls.reasons || [])],
         declarative: net.declarative === true,
-    };
+    }, 'L1-Réseau');
 
     // --- L2 : Réputation IP (provenance datacenter + cadence de tentatives) ---
-    const acc = L2_access.analyze({ ip, fingerprint });
+    const acc = tag(L2_access.analyze({ ip, fingerprint }), 'L2-Accès');
+
+    // --- L3 : Proof of Work (déjà évalué, on le tague pour cohérence) ---
+    const powTagged = tag(pow, 'L3-PoW');
 
     // --- L4 : Empreinte matérielle ---
-    const hw = L4_hardware.analyze({
+    const hw = tag(L4_hardware.analyze({
         webgl: hardware && hardware.webgl,
         canvas: hardware && hardware.canvas,
         audio: hardware && hardware.audio,
         webgpu: hardware ? hardware.webgpu : undefined,
         sensorDesync, fingerprint,
-    });
+    }), 'L4-Hardware');
 
     // --- L5 : Détection d'automatisation ---
-    const auto = L5_automation.analyze({ automation, vsync });
+    const auto = tag(L5_automation.analyze({ automation, vsync }), 'L5-Automation');
 
     // --- L6 : Biométrie comportementale ---
-    const bio = L6_biometrics.analyze({ mouseTrajectory, keystrokes });
+    const bio = tag(L6_biometrics.analyze({ mouseTrajectory, keystrokes }), 'L6-Biométrie');
 
     // --- Verdict : agrégation + règle de corroboration (politique, pas heuristique) ---
-    const v = verdict.decide([pow, l1, acc, hw, auto, bio]);
+    const v = verdict.decide([powTagged, l1, acc, hw, auto, bio]);
 
-    console.log(`[ORCHESTRATOR] IP: ${ip} | Score: ${v.score} | Témoins: ${v.witnesses} | Raisons: ${v.reasons.join(', ') || 'aucune'}`);
+    // Journalisation structurée par couche — chaque ligne montre sa contribution
+    // exacte (score brut + raisons) pour un diagnostic immédiat sans décompiler les logs.
+    const logLayer = (label, result) => {
+        if (!result) return;
+        const sc = result.score ?? 0;
+        const txt = (result.reasons || []).map(r => r.replace(/^\[[^\]]+\]\s*/, '')).join(' | ') || '—';
+        console.log(`  ├─ [${label.padEnd(14)}] ${(sc >= 0 ? '+' : '') + sc} | ${txt}`);
+    };
+    console.log(`[ORCHESTRATOR] IP: ${ip} | Score: ${v.score} | Témoins: ${v.witnesses} | Verdict: ${v.allowed ? 'PASS' : v.ban ? 'BAN' : 'BLOCK'}${v.declarative ? ' (déclaratif)' : ''}`);
+    logLayer('L1-Réseau',     l1);
+    logLayer('L2-Accès',      acc);
+    logLayer('L3-PoW',        powTagged);
+    logLayer('L4-Hardware',   hw);
+    logLayer('L5-Automation', auto);
+    logLayer('L6-Biométrie',  bio);
 
     // --- Mise à jour de la session visiteur (s'il en a une) et envoi Telegram ---
     const sessionId = req.cookies && req.cookies['_nx_session'];
     let visitor = sessionId ? visitors.getVisitor(sessionId) : null;
-    
+
     // S'il n'a pas de session (bot pur qui bloque les cookies), on lui crée une fiche temporaire pour Telegram
     if (!visitor) {
         visitor = visitors.createVisitor({ ip, userAgent: req.headers['user-agent'] || 'unknown' });
     }
-    
+
     visitors.updateVisitor(visitor.id, {
         score: v.score,
         decision: v.allowed ? 'allowed' : (v.ban ? 'blocked' : 'suspect'),
-        reasons: v.reasons
+        reasons: v.reasons,
+        // Contributions brutes de chaque couche — affichées dans le dashboard admin
+        // et utilisées pour le rapport "Copier" par visiteur.
+        layerScores: {
+            'L1-Réseau':     l1?.score        ?? 0,
+            'L2-Accès':      acc?.score       ?? 0,
+            'L3-PoW':        powTagged?.score ?? 0,
+            'L4-Hardware':   hw?.score        ?? 0,
+            'L5-Automation': auto?.score      ?? 0,
+            'L6-Biométrie':  bio?.score       ?? 0,
+        },
     });
     
-    // Envoi de la notification Telegram pour TOUT LE MONDE
-    telegram.notifySuspect(visitor).catch(() => {});
+    // Notification Telegram uniquement pour les visiteurs suspects ou bloqués.
+    if (v.score < 80 || !v.allowed) {
+        telegram.notifySuspect(visitor).catch(() => {});
+    }
 
     if (!v.allowed) {
         if (v.ban) {
@@ -161,7 +196,7 @@ exports.verifyChallenge = async (req, res) => {
     const token = L7_session.createToken(ip, fingerprint, v.score);
     res.cookie('human_auth_token', token, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict', // anti-CSRF : le cookie n'accompagne pas les requêtes cross-site
         maxAge: L7_session.SESSION_DURATION_MS,
     });
@@ -172,7 +207,7 @@ exports.verifyChallenge = async (req, res) => {
 };
 
 exports.recordSilentFeedback = (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket.remoteAddress;
 
     // Protection CSRF (revue, faille critique) : sans ce contrôle, un site malveillant
     // pouvait faire POSTer le navigateur d'une VICTIME vers ce piège et faire bannir

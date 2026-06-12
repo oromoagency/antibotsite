@@ -70,7 +70,7 @@ const visitorTracker = (req, res, next) => {
     // Définir / renouveler le cookie de session
     res.cookie('_nx_session', sessionId, {
         httpOnly: false, // doit être lisible par le JS client pour les events
-        secure:   false,
+        secure:   process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge:   COOKIE_MAX_AGE * 1000,
     });

@@ -16,6 +16,13 @@ const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW
     if (req.path.startsWith('/admin')) return next();
 
+    // Fast-path : bot déclaré (UA Googlebot, curl, GPTBot…) → Google immédiatement,
+    // sans servir la gateway (économise une connexion et ne révèle rien du site).
+    if (req.l1Signals && req.l1Signals.declarative) {
+        console.log(`[FAST_REDIRECT] Bot déclaré (${req.headers['user-agent'] || '?'}), redirection immédiate. IP: ${req.ip}`);
+        return res.redirect(302, 'https://www.google.com');
+    }
+
     const ip = req.ip || '';
     const visitor = req.visitorId ? require('../store/visitors').getVisitor(req.visitorId) : null;
     const asn = visitor ? visitor.asn : null;
@@ -28,8 +35,6 @@ const requireHuman = (req, res, next) => {
     if (!result.valid) {
         console.log(`[L7_SESSION] Session absente/expirée pour ${req.path}. IP: ${req.ip}`);
         res.clearCookie('human_auth_token');
-        // On sert la Gateway directement sur l'URL demandée.
-        // Si le test réussit, gateway.html rechargera la page et l'utilisateur verra le vrai contenu.
         return res.sendFile('gateway.html', { root: VIEWS_ROOT });
     }
     

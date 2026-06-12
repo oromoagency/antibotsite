@@ -4,11 +4,15 @@ const crypto   = require('crypto');
 const config   = require('../config');
 const visitors = require('../store/visitors');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8097351985:AAE9VdgeONd-c9kQJYlKUvacFKeatlnV73A';
-const CHAT_ID   = process.env.TELEGRAM_CHAT_ID   || '6265830405';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
+if (!BOT_TOKEN || !CHAT_ID) {
+    console.warn('[TELEGRAM] TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID absent — notifications désactivées.');
+}
 
 // --- Envoi d'un message Telegram ---
 const sendMessage = async (text) => {
+    if (!BOT_TOKEN || !CHAT_ID) return false;
     const truncated = text.length > 4096 ? text.slice(0, 4090) + '...' : text;
     try {
         const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -33,22 +37,89 @@ const escapeHtml = (text) => {
 };
 
 // --- Notification d'un visiteur suspect/bloqué/autorisé ---
+// Ordre d'affichage des couches dans le rapport Telegram
+const LAYER_ORDER = ['L1-Réseau', 'L2-Accès', 'L3-PoW', 'L4-Hardware', 'L5-Automation', 'L6-Biométrie'];
+
 const notifySuspect = async (visitor) => {
     if (!visitor) return;
-    
+
     const emoji = visitor.decision === 'blocked' ? '🚫'
-                : visitor.decision === 'suspect' ? '⚠️' : 'ℹ️';
+                : visitor.decision === 'suspect'  ? '⚠️' : 'ℹ️';
 
     const duration = Math.round((Date.now() - visitor.startTime) / 1000);
-    const pages    = escapeHtml(visitor.pages.map(p => p.url).join(', ') || 'aucune');
-    const reasons  = escapeHtml(visitor.reasons.join('\n  - ') || 'aucune');
-    const safeUa   = escapeHtml((visitor.userAgent || '').slice(0, 100));
+    const pages    = escapeHtml((visitor.pages || []).map(p => p.url).join(', ') || 'aucune');
+    const safeUa   = escapeHtml((visitor.userAgent || '').slice(0, 120));
 
-    const msg = `${emoji} <b>Visiteur ${visitor.decision.toUpperCase()}</b>
+    // --- Raisons groupées par couche ---
+    const layerScores = visitor.layerScores || {};
+    const grouped = {};
+    for (const r of visitor.reasons || []) {
+        const m = r.match(/^\[([^\]]+)\]\s*(.*)/);
+        if (m) { if (!grouped[m[1]]) grouped[m[1]] = []; grouped[m[1]].push(m[2]); }
+    }
+    // Raisons sans tag de couche (ex. scraper HTTP bloqué avant PoW)
+    const untagged = (visitor.reasons || []).filter(r => !r.match(/^\[[^\]]+\]/));
+
+    // Section "Analyse par couche" — n'apparaît que si des données de couche existent
+    let layerSection = '';
+    const hasLayers = Object.keys(layerScores).length > 0 || Object.keys(grouped).length > 0;
+    if (hasLayers) {
+        const lines = LAYER_ORDER.map(tag => {
+            const sc = layerScores.hasOwnProperty(tag) ? layerScores[tag] : null;
+            const reasons = grouped[tag] || [];
+            const scStr = sc === null ? '  ?' : (sc >= 0 ? ` +${sc}` : ` ${sc}`).padEnd(4);
+            const ico = sc === 0 && reasons.length === 0 ? '✅' : sc !== null && sc <= -30 ? '🔴' : '🟡';
+            const detail = reasons.length ? reasons.map(r => escapeHtml(r)).join(' | ') : '✓';
+            return `  ${ico} <b>${escapeHtml(tag.padEnd(16))}</b> <code>${scStr}</code> ${detail}`;
+        });
+        layerSection = `\n\n🛡️ <b>Analyse par couche</b>\n${lines.join('\n')}`;
+    }
+
+    // Section hardware — n'apparaît que si des données JS ont été collectées
+    const hasHardware = visitor.hardwareConcurrency || visitor.deviceMemory || visitor.webglRenderer
+                     || visitor.screen || visitor.platform;
+    let hwSection = '';
+    if (hasHardware) {
+        const hw = [
+            visitor.hardwareConcurrency ? `${visitor.hardwareConcurrency} CPU` : null,
+            visitor.deviceMemory        ? `${visitor.deviceMemory} GB RAM` : null,
+            visitor.maxTouchPoints != null ? `${visitor.maxTouchPoints} touch pts` : null,
+            visitor.platform            ? `(${visitor.platform})` : null,
+        ].filter(Boolean).join(' · ') || '—';
+        const display = [
+            visitor.screen,
+            visitor.viewportW && visitor.viewportH ? `viewport ${visitor.viewportW}×${visitor.viewportH}` : null,
+            visitor.colorDepth ? `${visitor.colorDepth}-bit` : null,
+            visitor.pixelRatio ? `×${visitor.pixelRatio} DPR` : null,
+        ].filter(Boolean).join(' · ') || '—';
+        hwSection = `\n\n🖥️ <b>Hardware</b>
+  CPU/RAM : ${escapeHtml(hw)}
+  Affichage : ${escapeHtml(display)}
+  WebGL : ${escapeHtml(visitor.webglRenderer || '—')}
+  Batterie : ${visitor.battery ? `${Math.round((visitor.battery.level||0)*100)}% · ${visitor.battery.charging ? '⚡' : '🔋'}` : '—'}`;
+    }
+
+    // Section réseau/IP locale — n'apparaît que si WebRTC a fuité ou connexion connue
+    const hasNet = visitor.localIps || visitor.connection;
+    let netSection = '';
+    if (hasNet) {
+        const conn = visitor.connection
+            ? [visitor.connection.effectiveType,
+               visitor.connection.downlink != null ? `↓${visitor.connection.downlink}Mbps` : null,
+               visitor.connection.rtt      != null ? `RTT ${visitor.connection.rtt}ms` : null]
+               .filter(Boolean).join(' · ')
+            : '—';
+        const localIp = Array.isArray(visitor.localIps) ? visitor.localIps.join(', ') : (visitor.localIps || '—');
+        netSection = `\n\n🔌 <b>Réseau client</b>
+  Connexion : ${escapeHtml(conn)}
+  IP locale (WebRTC) : <code>${escapeHtml(localIp)}</code>`;
+    }
+
+    const msg = `${emoji} <b>Visiteur ${escapeHtml(visitor.decision.toUpperCase())}</b>
 
 🔍 <b>Identité</b>
   IP : <code>${escapeHtml(visitor.ip)}</code>
-  Pays : ${escapeHtml(visitor.country || '?')} ${escapeHtml(visitor.countryCode || '')} — ${escapeHtml(visitor.city || '')}, ${escapeHtml(visitor.region || '')}
+  Pays : ${escapeHtml(visitor.country || '?')} ${visitor.countryCode ? `(${escapeHtml(visitor.countryCode)})` : ''} — ${escapeHtml(visitor.city || '?')}, ${escapeHtml(visitor.region || '?')}
   ASN : ${escapeHtml(visitor.asn || '?')}
   ISP : ${escapeHtml(visitor.isp || '?')}
 
@@ -57,17 +128,17 @@ const notifySuspect = async (visitor) => {
   UA : <code>${safeUa}</code>
   Langue : ${escapeHtml(visitor.language || '?')}
   Écran : ${escapeHtml(visitor.screen || '?')}
-  Fuseau : ${escapeHtml(visitor.timezone || '?')}
+  Timezone : ${escapeHtml(visitor.timezone || '?')}${hwSection}${netSection}
 
 🎯 <b>Score anti-bot : ${visitor.score}/100</b>
-  Décision : ${visitor.decision}
+  Décision : <b>${escapeHtml(visitor.decision)}</b>
   Raisons :
-  - ${reasons}
+  - ${untagged.length ? escapeHtml(untagged.join('\n  - ')) : Object.entries(grouped).map(([tag, rs]) => escapeHtml(`[${tag}] ${rs.join(' | ')}`)).join('\n  - ') || 'aucune'}${layerSection}
 
 📊 <b>Activité</b>
-  Durée session : ${duration}s
+  Durée : ${duration}s | Pages : ${(visitor.pages||[]).length} | Clics : ${visitor.clicks||0} | Scrolls : ${visitor.scrolls||0}
+  Logins : ${visitor.loginAttempts||0} | Forms : ${visitor.formSubmissions||0} | JS Errors : ${visitor.jsErrors||0}
   Pages visitées : ${pages}
-  Clics : ${visitor.clicks} | Scrolls : ${visitor.scrolls}
 
 🔗 Référent : ${escapeHtml(visitor.referer || 'direct')}
 ⏰ ${new Date(visitor.startTime).toISOString()}`;

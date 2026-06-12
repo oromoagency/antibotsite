@@ -44,7 +44,7 @@ const geolocate = async (ip) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 3000);
         const res = await fetch(
-            `http://ip-api.com/json/${ip}?fields=country,countryCode,regionName,city,as,isp`,
+            `https://ip-api.com/json/${ip}?fields=country,countryCode,regionName,city,as,isp`,
             { signal: ctrl.signal }
         );
         clearTimeout(t);
@@ -77,6 +77,18 @@ const createVisitor = (data) => {
         country: null, countryCode: null, region: null, city: null, asn: null, isp: null,
         // Données côté client (remplies via /api/track/event type 'identify')
         screen: null, timezone: null, cookiesEnabled: null, localStorageAvailable: null,
+        sessionStorageAvailable: null, indexedDbAvailable: null,
+        // Hardware
+        hardwareConcurrency: null, deviceMemory: null, platform: null, maxTouchPoints: null,
+        colorDepth: null, pixelRatio: null, viewportW: null, viewportH: null,
+        // Réseau
+        connection: null, localIps: null,
+        // Préférences
+        doNotTrack: null, prefDark: null, prefReducedMotion: null, prefContrast: null,
+        // Plugins & polices
+        plugins: null, fonts: null, battery: null,
+        // WebGL renderer (pour confirmer headless sans repasser par les couches)
+        webglRenderer: null,
         // Activité
         pages:           [],
         events:          [],
@@ -86,9 +98,10 @@ const createVisitor = (data) => {
         loginAttempts:   0,
         jsErrors:        0,
         // Anti-bot
-        score:    100,
-        decision: 'pending',
-        reasons:  [],
+        score:      100,
+        decision:   'pending',
+        reasons:    [],
+        layerScores: null, // { 'L1-Réseau': -15, 'L2-Accès': 0, ... } — rempli après vérification PoW
     };
     visitors.set(id, visitor);
 

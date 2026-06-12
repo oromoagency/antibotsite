@@ -435,6 +435,42 @@
       font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.55rem;
     }
 
+    /* ===== LAYER BREAKDOWN ===== */
+    .layer-grid { display: flex; flex-direction: column; gap: 0.4rem; }
+    .layer-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .layer-card.lc-clean   { border-color: rgba(34,197,94,0.3); }
+    .layer-card.lc-warn    { border-color: rgba(234,179,8,0.35); }
+    .layer-card.lc-flagged { border-color: rgba(239,68,68,0.4); }
+    .layer-card-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 0.9rem;
+    }
+    .layer-card.lc-clean   .layer-card-hdr { background: rgba(34,197,94,0.05); }
+    .layer-card.lc-warn    .layer-card-hdr { background: rgba(234,179,8,0.05); }
+    .layer-card.lc-flagged .layer-card-hdr { background: rgba(239,68,68,0.07); }
+    .layer-name { font-size: 0.77rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .layer-score-badge {
+      font-size: 0.7rem; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+      padding: 0.15rem 0.55rem; border-radius: 4px;
+    }
+    .lc-clean   .layer-score-badge { background: rgba(34,197,94,0.12); color: var(--green); }
+    .lc-warn    .layer-score-badge { background: rgba(234,179,8,0.12); color: var(--yellow); }
+    .lc-flagged .layer-score-badge { background: rgba(239,68,68,0.12); color: var(--red); }
+    .layer-reasons-wrap { padding: 0.35rem 0.9rem 0.55rem; display: flex; flex-direction: column; gap: 0.2rem; }
+    .layer-reason-item { font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; }
+    .layer-reason-item::before { content: '↳ '; color: var(--text-dim); }
+
+    /* Copy report button in modal header */
+    .copy-report-btn {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.75rem; border-radius: 6px;
+      background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25);
+      color: var(--accent); font-size: 0.72rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .copy-report-btn:hover { background: rgba(59,130,246,0.2); }
+    .copy-report-btn.copied { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: var(--green); }
+
     .stats-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .stat-chip {
       display: flex; align-items: center; gap: 0.4rem;
@@ -739,7 +775,10 @@
   <div class="modal-box">
     <div class="modal-header">
       <div class="modal-title" id="m-title">Visitor Details</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <button class="copy-report-btn" id="m-copy-btn" onclick="copyReport()">📋 Copier rapport</button>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
     </div>
     <div class="modal-body">
 
@@ -781,6 +820,14 @@
         </div>
       </div>
 
+      <!-- Analyse par couche L1→L6 -->
+      <div class="m-section">
+        <div class="m-section-title">Analyse par couche (L1 → L6)</div>
+        <div class="layer-grid" id="m-layers">
+          <div style="color:var(--text-dim);font-size:0.8rem;padding:0.5rem 0">En attente de vérification…</div>
+        </div>
+      </div>
+
       <!-- Browser & Environment -->
       <div class="m-section">
         <div class="m-section-title">Browser &amp; Environment</div>
@@ -790,20 +837,74 @@
             <div class="detail-val mono" id="m-ua">—</div>
           </div>
           <div class="detail-item">
-            <div class="detail-label">Browser / OS</div>
+            <div class="detail-label">Browser / OS / Platform</div>
             <div class="detail-val" id="m-browser">—</div>
           </div>
           <div class="detail-item">
-            <div class="detail-label">Screen / Timezone / Language</div>
+            <div class="detail-label">Écran / Viewport / Timezone</div>
             <div class="detail-val" id="m-env">—</div>
           </div>
           <div class="detail-item">
-            <div class="detail-label">Referrer</div>
-            <div class="detail-val mono" id="m-referrer">—</div>
+            <div class="detail-label">Langue(s)</div>
+            <div class="detail-val mono" id="m-langs">—</div>
           </div>
           <div class="detail-item">
-            <div class="detail-label">Entry Page</div>
-            <div class="detail-val mono" id="m-entry">—</div>
+            <div class="detail-label">Référent</div>
+            <div class="detail-val mono" id="m-referrer">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hardware -->
+      <div class="m-section">
+        <div class="m-section-title">Hardware &amp; Capacités</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">CPU / RAM / Tactile</div>
+            <div class="detail-val mono" id="m-hw">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Couleur / Ratio / Viewport</div>
+            <div class="detail-val mono" id="m-display">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Renderer GPU (WebGL)</div>
+            <div class="detail-val mono" id="m-webgl">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Batterie</div>
+            <div class="detail-val mono" id="m-battery">—</div>
+          </div>
+          <div class="detail-item full">
+            <div class="detail-label">Polices détectées</div>
+            <div class="detail-val mono" id="m-fonts">—</div>
+          </div>
+          <div class="detail-item full">
+            <div class="detail-label">Plugins navigateur</div>
+            <div class="detail-val mono" id="m-plugins">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Réseau & IP locale -->
+      <div class="m-section">
+        <div class="m-section-title">Réseau &amp; Connexion</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Type / Débit / RTT</div>
+            <div class="detail-val mono" id="m-conn">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">IP locale (WebRTC)</div>
+            <div class="detail-val mono" id="m-localip">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Stockage / Cookies</div>
+            <div class="detail-val mono" id="m-storage">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Préférences navigateur</div>
+            <div class="detail-val mono" id="m-prefs">—</div>
           </div>
         </div>
       </div>
@@ -843,6 +944,7 @@ let refreshTimer = null;
 let allVisitors  = [];
 let allLogs      = [];
 let visFilter    = 'all';
+let _copyVisitor = null; // visiteur courant dans le modal (pour copyReport)
 
 /* ── INIT ──────────────────────────────────────── */
 (function init() {
@@ -1070,7 +1172,7 @@ function renderVisitorsTable() {
   document.getElementById('visitors-body').innerHTML = rows.map(v => {
     const dec = (v.decision || 'pending').toLowerCase();
     const sc  = v.score ?? 0;
-    const scoreColor = sc >= 70 ? 'var(--red)' : sc >= 40 ? 'var(--yellow)' : 'var(--green)';
+    const scoreColor = sc >= 70 ? 'var(--green)' : sc >= 40 ? 'var(--yellow)' : 'var(--red)';
     const dur = formatDuration(v.startTime, v.lastSeen || v.startTime);
     const evts = (v.events || []).length;
     const pgs  = (v.pages  || []).length;
@@ -1167,10 +1269,140 @@ document.getElementById('visitorModal').addEventListener('click', function(e) {
 /* Escape key */
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
+/* ── LAYER ANALYSIS ────────────────────────────── */
+const LAYERS_DEF = [
+  { tag: 'L1-Réseau',     label: 'L1 · Réseau',        icon: '🌐' },
+  { tag: 'L2-Accès',      label: 'L2 · Accès',         icon: '🛡️' },
+  { tag: 'L3-PoW',        label: 'L3 · Proof of Work', icon: '⛏️' },
+  { tag: 'L4-Hardware',   label: 'L4 · Hardware',      icon: '💻' },
+  { tag: 'L5-Automation', label: 'L5 · Automation',    icon: '🤖' },
+  { tag: 'L6-Biométrie',  label: 'L6 · Biométrie',     icon: '🖱️' },
+];
+
+function groupReasonsByLayer(reasons) {
+  const grouped = {};
+  for (const r of reasons || []) {
+    const m = r.match(/^\[([^\]]+)\]\s*(.*)/);
+    if (m) {
+      if (!grouped[m[1]]) grouped[m[1]] = [];
+      grouped[m[1]].push(m[2]);
+    }
+  }
+  return grouped;
+}
+
+function populateLayers(v) {
+  const el = document.getElementById('m-layers');
+  const layerScores = v.layerScores || {};
+  const grouped = groupReasonsByLayer(v.reasons || []);
+  const hasData = Object.keys(layerScores).length > 0 || Object.keys(grouped).length > 0;
+
+  if (!hasData) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:0.8rem;padding:0.25rem 0">Aucune donnée de couche — visiteur bloqué avant la vérification PoW.</div>';
+    return;
+  }
+
+  el.innerHTML = LAYERS_DEF.map(({ tag, label, icon }) => {
+    const score = layerScores.hasOwnProperty(tag) ? layerScores[tag] : null;
+    const reasons = grouped[tag] || [];
+    const isClean   = score === 0 && reasons.length === 0;
+    const isFlagged = score !== null && score <= -30;
+    const cls = isClean ? 'lc-clean' : isFlagged ? 'lc-flagged' : 'lc-warn';
+    const scoreTxt = score === null
+      ? '<span style="color:var(--text-dim)">?</span>'
+      : `score ${score >= 0 ? '+' : ''}${score}`;
+    const badge = isClean ? '✓ Clean' : scoreTxt;
+    const reasonsHtml = reasons.length
+      ? `<div class="layer-reasons-wrap">${reasons.map(r => `<div class="layer-reason-item">${esc(r)}</div>`).join('')}</div>`
+      : '';
+    return `<div class="layer-card ${cls}">
+      <div class="layer-card-hdr">
+        <span class="layer-name">${icon} ${esc(label)}</span>
+        <span class="layer-score-badge">${badge}</span>
+      </div>${reasonsHtml}</div>`;
+  }).join('');
+}
+
+/* ── COPY REPORT ────────────────────────────────── */
+function copyReport() {
+  const v = _copyVisitor;
+  if (!v) return;
+  const sc  = v.score ?? 0;
+  const dec = (v.decision || 'pending').toUpperCase();
+  const dur = formatDuration(v.startTime, v.lastSeen || v.startTime);
+  const dt  = v.startTime ? new Date(v.startTime).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : '—';
+  const layerScores = v.layerScores || {};
+  const grouped = groupReasonsByLayer(v.reasons || []);
+
+  const layerLines = LAYERS_DEF.map(({ tag, label }) => {
+    const score = layerScores.hasOwnProperty(tag) ? layerScores[tag] : null;
+    const reasons = grouped[tag] || [];
+    const sc2 = score === null ? '  ?' : (score >= 0 ? ` +${score}` : ` ${score}`);
+    const status = reasons.length ? reasons.join(' | ') : '✓';
+    return `  ${(label + ' ').padEnd(25).slice(0,25)}: ${sc2.padEnd(5)} | ${status}`;
+  }).join('\n');
+
+  const p = (...parts) => parts.filter(x => x != null && x !== '' && x !== '—').join(' · ') || '—';
+  const lines = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '🔍 RAPPORT VISITEUR — NexAPI Antibot',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Session   : ${v.id || '—'}`,
+    `Date      : ${dt}`,
+    `Durée     : ${dur}`,
+    `Score     : ${sc}/100 · ${dec}`,
+    '',
+    '━━━ IDENTITÉ ━━━━━━━━━━━━━━━━━━━━',
+    `IP        : ${v.ip || '—'}`,
+    `Localité  : ${p(v.country, v.countryCode ? `(${v.countryCode})` : null, v.city, v.region)}`,
+    `ASN / ISP : ${p(v.asn, v.isp)}`,
+    '',
+    '━━━ ENVIRONNEMENT ━━━━━━━━━━━━━━━',
+    `Navigateur: ${p(v.browser, v.os, v.platform ? `(${v.platform})` : null)}`,
+    `UA        : ${(v.userAgent || '—').slice(0, 120)}`,
+    `Langue    : ${v.language || '—'}`,
+    `Écran     : ${p(v.screen, v.viewportW && v.viewportH ? `viewport ${v.viewportW}×${v.viewportH}` : null, v.colorDepth ? `${v.colorDepth}-bit` : null, v.pixelRatio ? `×${v.pixelRatio} DPR` : null)}`,
+    `Timezone  : ${v.timezone || '—'}`,
+    `Hardware  : ${p(v.hardwareConcurrency ? `${v.hardwareConcurrency} CPU` : null, v.deviceMemory ? `${v.deviceMemory} GB RAM` : null, v.maxTouchPoints != null ? `${v.maxTouchPoints} touch pts` : null)}`,
+    `WebGL     : ${v.webglRenderer || '—'}`,
+    `Batterie  : ${v.battery ? `${Math.round((v.battery.level||0)*100)}% · ${v.battery.charging ? 'en charge' : 'sur pile'}` : '—'}`,
+    `Connexion : ${v.connection ? p(v.connection.effectiveType, v.connection.downlink != null ? `↓${v.connection.downlink} Mbps` : null, v.connection.rtt != null ? `RTT ${v.connection.rtt}ms` : null) : '—'}`,
+    `IP locale : ${Array.isArray(v.localIps) ? v.localIps.join(', ') || '—' : v.localIps || '—'}`,
+    `Stockage  : ${p(v.cookiesEnabled === true ? 'Cookies' : null, v.localStorageAvailable === true ? 'localStorage' : null, v.sessionStorageAvailable === true ? 'sessionStorage' : null, v.indexedDbAvailable === true ? 'IndexedDB' : null)}`,
+    `Polices   : ${Array.isArray(v.fonts) ? v.fonts.slice(0, 12).join(', ') || '—' : v.fonts || '—'}`,
+    `Plugins   : ${Array.isArray(v.plugins) ? v.plugins.slice(0, 6).join(', ') || '—' : v.plugins || '—'}`,
+    `Prefs     : ${p(v.doNotTrack ? `DNT:${v.doNotTrack}` : null, v.prefDark === true ? 'Dark' : v.prefDark === false ? 'Light' : null, v.prefReducedMotion ? 'Reduced Motion' : null, v.prefContrast ? 'High Contrast' : null)}`,
+    `Référent  : ${v.referer || 'direct'}`,
+    '',
+    '━━━ ANALYSE ANTIBOT PAR COUCHE ━━',
+    layerLines,
+    '',
+    '━━━ ACTIVITÉ ━━━━━━━━━━━━━━━━━━━',
+    `Pages     : ${(v.pages||[]).length}  |  Events: ${(v.events||[]).length}  |  Clics: ${v.clicks||0}  |  Scrolls: ${v.scrolls||0}`,
+    `Login     : ${v.loginAttempts||0}  |  Formulaires: ${v.formSubmissions||0}  |  JS Errors: ${v.jsErrors||0}`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+  ];
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('m-copy-btn');
+    if (btn) { btn.textContent = '✓ Copié !'; btn.classList.add('copied'); }
+    showToast('Rapport copié dans le presse-papier', 'success');
+    setTimeout(() => {
+      if (btn) { btn.textContent = '📋 Copier rapport'; btn.classList.remove('copied'); }
+    }, 2500);
+  }).catch(() => showToast('Erreur copie presse-papier', 'error'));
+}
+
 function populateModal(v) {
+  _copyVisitor = v;
+  // Reset copy button state (au cas où le modal se rouvre après un copie)
+  const copyBtn = document.getElementById('m-copy-btn');
+  if (copyBtn) { copyBtn.textContent = '📋 Copier rapport'; copyBtn.classList.remove('copied'); }
+
   const dec = (v.decision || 'pending').toLowerCase();
   const sc  = v.score ?? 0;
-  const scoreColor = sc >= 70 ? 'var(--red)' : sc >= 40 ? 'var(--yellow)' : 'var(--green)';
+  const scoreColor = sc >= 70 ? 'var(--green)' : sc >= 40 ? 'var(--yellow)' : 'var(--red)';
 
   /* Header */
   document.getElementById('m-title').innerHTML =
@@ -1193,7 +1425,7 @@ function populateModal(v) {
       <div>
         <span class="badge ${dec}">${dec.toUpperCase()}</span>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">
-          Risk: ${sc >= 70 ? '🔴 High' : sc >= 40 ? '🟡 Medium' : '🟢 Low'}
+          ${sc >= 70 ? '🟢 Humain' : sc >= 40 ? '🟡 Suspect' : '🔴 Bot'}
         </div>
       </div>
     </div>`;
@@ -1217,14 +1449,64 @@ function populateModal(v) {
 
   /* Browser & env */
   document.getElementById('m-ua').textContent      = v.userAgent || '—';
-  document.getElementById('m-browser').textContent = [v.browser, v.os].filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-browser').textContent =
+    [v.browser, v.os, v.platform ? `(${v.platform})` : null].filter(Boolean).join(' · ') || '—';
   document.getElementById('m-env').textContent     =
     [v.screen ? `🖥 ${v.screen}` : null,
      v.timezone ? `🕐 ${v.timezone}` : null,
      v.language ? `🌐 ${v.language}` : null]
       .filter(Boolean).join('  ') || '—';
-  document.getElementById('m-referrer').textContent = v.referrer || '(direct)';
-  document.getElementById('m-entry').textContent    = (v.pages || [])[0]?.url || '—';
+  document.getElementById('m-referrer').textContent = v.referer || '(direct)';
+
+  /* Languages */
+  document.getElementById('m-langs').textContent = v.language || '—';
+
+  /* Hardware */
+  document.getElementById('m-hw').textContent =
+    [v.hardwareConcurrency != null ? `${v.hardwareConcurrency} CPU` : null,
+     v.deviceMemory        != null ? `${v.deviceMemory} GB RAM` : null,
+     v.maxTouchPoints      != null ? `${v.maxTouchPoints} touch pts` : null]
+      .filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-display').textContent =
+    [v.screen || null,
+     v.viewportW && v.viewportH ? `viewport ${v.viewportW}×${v.viewportH}` : null,
+     v.colorDepth  != null ? `${v.colorDepth}-bit color` : null,
+     v.pixelRatio  != null ? `×${v.pixelRatio} DPR` : null]
+      .filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-webgl').textContent  = v.webglRenderer || '—';
+  document.getElementById('m-battery').textContent =
+    v.battery
+      ? `${Math.round((v.battery.level||0)*100)}% · ${v.battery.charging ? '⚡ charging' : 'on battery'}`
+      : '—';
+  document.getElementById('m-fonts').textContent   =
+    Array.isArray(v.fonts) ? v.fonts.join(', ') || '—' : (v.fonts || '—');
+  document.getElementById('m-plugins').textContent =
+    Array.isArray(v.plugins) ? v.plugins.join(', ') || '—' : (v.plugins || '—');
+
+  /* Network & connection */
+  document.getElementById('m-conn').textContent =
+    v.connection
+      ? [v.connection.effectiveType, v.connection.type,
+         v.connection.downlink != null ? `↓${v.connection.downlink} Mbps` : null,
+         v.connection.rtt      != null ? `RTT ${v.connection.rtt}ms` : null]
+          .filter(Boolean).join(' · ')
+      : '—';
+  document.getElementById('m-localip').textContent =
+    Array.isArray(v.localIps) ? v.localIps.join(', ') || '—' : (v.localIps || '—');
+
+  /* Storage & prefs */
+  document.getElementById('m-storage').textContent =
+    [v.cookiesEnabled           === true  ? '🍪 Cookies' : v.cookiesEnabled === false ? '🚫 Cookies' : null,
+     v.localStorageAvailable    === true  ? 'localStorage' : v.localStorageAvailable === false ? '🚫 localStorage' : null,
+     v.sessionStorageAvailable  === true  ? 'sessionStorage' : v.sessionStorageAvailable === false ? '🚫 sessionStorage' : null,
+     v.indexedDbAvailable       === true  ? 'IndexedDB' : v.indexedDbAvailable === false ? '🚫 IndexedDB' : null]
+      .filter(Boolean).join(' · ') || '—';
+  document.getElementById('m-prefs').textContent =
+    [v.doNotTrack        ? `DNT:${v.doNotTrack}` : null,
+     v.prefDark          === true  ? '🌙 Dark' : v.prefDark === false ? '☀️ Light' : null,
+     v.prefReducedMotion === true  ? 'Reduced motion' : null,
+     v.prefContrast      === true  ? 'High contrast' : null]
+      .filter(Boolean).join(' · ') || '—';
 
   /* Stats chips */
   const chips = [
@@ -1242,6 +1524,9 @@ function populateModal(v) {
       <span class="stat-chip-lbl">${c.lbl}</span>
     </div>`
   ).join('');
+
+  /* Layer breakdown */
+  populateLayers(v);
 
   /* Timeline */
   buildTimeline(v);

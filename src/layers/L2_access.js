@@ -10,10 +10,7 @@ const reputation = require('../store/reputation');
 // WHITELIST — IPs/ASNs de confiance, jamais bloqués
 // ============================================================
 const WHITELIST_IPS  = new Set();  // IPs exactes en whitelist
-const WHITELIST_ASNS = new Set();  // ASNs en whitelist (ex: 'AS36974')
-
-// Whitelist permanente du propriétaire (MTN Côte d'Ivoire)
-WHITELIST_ASNS.add('AS36974'); // AS36974 MTN COTE D'IVOIRE S.A
+const WHITELIST_ASNS = new Set();  // ASNs en whitelist — vide par défaut, base neutre
 
 const addToWhitelist = (value) => {
     if (!value) return;

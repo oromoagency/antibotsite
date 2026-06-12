@@ -13,24 +13,52 @@ const webRoutes = require('./routes/web');
 
 const app = express();
 
-app.set('trust proxy', true);
+// Render est derrière un seul proxy (Cloudflare/load-balancer) — trust 1 seul hop.
+// `true` ferait confiance à n'importe quel X-Forwarded-For, ce qui permettrait
+// à un attaquant de forger son IP.
+app.set('trust proxy', 1);
 
-// Middleware Cloudflare : utiliser CF-Connecting-IP comme IP source de vérité
+// Plages IPv4 Cloudflare publiées sur https://www.cloudflare.com/ips-v4
+// Utilisées pour valider que CF-Connecting-IP vient réellement de Cloudflare.
+const CF_CIDRS = [
+    ['103.21.244.0', 22], ['103.22.200.0', 22], ['103.31.4.0', 22],
+    ['104.16.0.0', 13],   ['104.24.0.0', 14],   ['108.162.192.0', 18],
+    ['131.0.72.0', 22],   ['141.101.64.0', 18],  ['162.158.0.0', 15],
+    ['172.64.0.0', 13],   ['173.245.48.0', 20],  ['188.114.96.0', 20],
+    ['190.93.240.0', 20], ['197.234.240.0', 22], ['198.41.128.0', 17],
+];
+const ipToInt = (ip) => {
+    const parts = String(ip).replace(/^::ffff:/, '').split('.');
+    if (parts.length !== 4) return null;
+    let n = 0;
+    for (const p of parts) {
+        const o = parseInt(p, 10);
+        if (isNaN(o) || o < 0 || o > 255) return null;
+        n = n * 256 + o;
+    }
+    return n;
+};
+const isCloudflareIp = (ip) => {
+    const n = ipToInt(ip);
+    if (n === null) return false;
+    return CF_CIDRS.some(([base, bits]) => {
+        const b = ipToInt(base);
+        if (b === null) return false;
+        const size = Math.pow(2, 32 - bits);
+        return Math.floor(n / size) === Math.floor(b / size);
+    });
+};
+
+// Middleware Cloudflare : n'accepte CF-Connecting-IP que si la requête vient
+// d'une IP Cloudflare — sinon un attaquant pourrait forger l'en-tête pour
+// bypasser les bans IP.
 app.use((req, res, next) => {
     const cfIp = req.headers['cf-connecting-ip'];
-    if (cfIp) {
-        Object.defineProperty(req, 'ip', { get: () => cfIp });
+    const remoteIp = req.socket.remoteAddress || '';
+    if (cfIp && isCloudflareIp(remoteIp)) {
+        Object.defineProperty(req, 'ip', { get: () => cfIp, configurable: true });
     }
     next();
-});
-
-app.get('/api/test-ip', (req, res) => {
-    res.json({
-        ip: req.ip,
-        cfIp: req.headers['cf-connecting-ip'],
-        forwarded: req.headers['x-forwarded-for'],
-        remote: req.connection.remoteAddress
-    });
 });
 
 app.use(helmet({
@@ -51,11 +79,11 @@ app.use(helmet({
 
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 2000, // Augmenté pour supporter le polling du dashboard admin
+    max: 500, // ~33 req/min par IP — couvre le dashboard admin (12/min) + usage normal
     message: "Too many requests.",
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '128kb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 

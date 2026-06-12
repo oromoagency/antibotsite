@@ -26,11 +26,35 @@ exports.recordEvent = (req, res) => {
     switch (type) {
         case 'identify':
             if (v) visitors.updateVisitor(sessionId, {
-                screen:                 data.screen,
-                timezone:               data.timezone,
-                cookiesEnabled:         data.cookiesEnabled,
-                localStorageAvailable:  data.localStorageAvailable,
-                language:               data.language || v.language,
+                screen:                  data.screen,
+                timezone:                data.timezone || (data.languages && ''),
+                cookiesEnabled:          data.cookieEnabled  ?? data.cookiesEnabled,
+                localStorageAvailable:   data.localStorageAvailable,
+                sessionStorageAvailable: data.sessionStorageAvailable,
+                indexedDbAvailable:      data.indexedDbAvailable,
+                language:                (data.languages && data.languages[0]) || data.language || v.language,
+                // Hardware
+                hardwareConcurrency: data.hardwareConcurrency,
+                deviceMemory:        data.deviceMemory,
+                platform:            data.platform,
+                maxTouchPoints:      data.maxTouchPoints,
+                colorDepth:          data.colorDepth,
+                pixelRatio:          data.pixelRatio,
+                viewportW:           data.viewportW,
+                viewportH:           data.viewportH,
+                // Réseau
+                connection: data.connection,
+                localIps:   data.localIps,
+                // Préférences
+                doNotTrack:        data.doNotTrack,
+                prefDark:          data.prefDark,
+                prefReducedMotion: data.prefReducedMotion,
+                prefContrast:      data.prefContrast,
+                // Plugins & polices
+                plugins:      data.plugins,
+                fonts:        data.fonts,
+                battery:      data.battery,
+                webglRenderer:data.webglRenderer,
             });
             break;
         case 'click':
