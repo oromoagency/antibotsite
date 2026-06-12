@@ -202,19 +202,22 @@ exports.verifyChallenge = async (req, res) => {
     if (!v.allowed) {
         if (v.ban) {
             reputation.recordStrike(ip);
-            console.log(`[ACCESS_DENIED] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike. IP: ${ip}`);
+            console.log(`[PRISM] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike — voie dégradée (suspicion ${v.suspicion.toFixed(2)}). IP: ${ip}`);
         } else {
-            // BLOCK sans BAN : marquer l'IP comme suspecte 30 min.
-            // Une 2e tentative depuis la même IP recevra -30 en L2, ce qui
-            // combiné aux signaux déjà présents force généralement le ban.
+            // Score insuffisant sans corroboration : marquer suspect mais ne pas bloquer.
+            // Architecture Prisme : on émet quand même un token — avec suspicion élevée.
+            // La réfraction (watermark + poison + friction) prend le relais.
             reputation.recordSuspect(ip);
-            console.log(`[ACCESS_DENIED] Refus sans ban (score ${v.score}) — IP marquée suspecte. IP: ${ip}`);
+            console.log(`[PRISM] Score faible (${v.score}), suspicion=${v.suspicion.toFixed(2)} — token dégradé émis. IP: ${ip}`);
         }
-        recordOutcome(ip, v.ban ? 'ban' : 'block', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
-        return res.status(403).json({ success: false, message: 'Vérification échouée.' });
+        recordOutcome(ip, v.ban ? 'ban' : 'suspect', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
+        // On NE bloque PAS — on continue et on émet le token dégradé ci-dessous.
+        // (pas de return ici)
     }
 
     // --- L7 : Session ---
+    // Architecture Prisme : le token est émis pour TOUT le monde (allowed ET non-allowed).
+    // La suspicion est encodée pour que le BFF puisse réfracter selon le niveau de risque.
     usedNonces.add(nonce);
     const token = L7_session.createToken(ip, fingerprint, v.score);
     res.cookie('human_auth_token', token, {
@@ -224,9 +227,13 @@ exports.verifyChallenge = async (req, res) => {
         maxAge: L7_session.SESSION_DURATION_MS,
     });
 
-    recordOutcome(ip, 'pass', v.score, v.witnesses, [], req.headers['user-agent']);
-    console.log(`[VALIDATION_PASSED] Score: ${v.score}. IP: ${ip}`);
-    res.json({ success: true });
+    const outcome = v.allowed ? 'pass' : (v.ban ? 'ban' : 'suspect');
+    recordOutcome(ip, outcome, v.score, v.witnesses, v.allowed ? [] : v.reasons, req.headers['user-agent']);
+    if (v.allowed) console.log(`[VALIDATION_PASSED] Score: ${v.score}. IP: ${ip}`);
+
+    // Le client reçoit toujours success:true + la suspicion pour adapter l'UX
+    // (ex: pas de redirect Google côté client — simplement recharger la page).
+    res.json({ success: true, suspicion: parseFloat(v.suspicion.toFixed(2)), score: v.score });
 };
 
 exports.recordSilentFeedback = (req, res) => {

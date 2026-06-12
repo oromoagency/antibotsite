@@ -347,10 +347,15 @@ try {
         }),
     });
     const data = await res.json();
+    // Architecture Prisme : success est toujours true (aucune porte).
+    // On recharge dans tous les cas — la réfraction côté serveur gère le niveau de risque.
+    // Pas de redirect Google : un humain mal classé ne doit jamais être expulsé.
     if (data.success) {
         window.location.reload();
     } else {
-        window.location.replace('https://www.google.com');
+        // Seul cas d'échec : erreur serveur (500) ou payload malformé (400).
+        // On recharge (pas de ban pour une panne ou un client cassé).
+        window.location.reload();
     }
 } catch {
     // Erreur réseau : on recharge (pas de ban pour une panne réseau)

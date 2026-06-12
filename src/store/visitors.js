@@ -64,8 +64,13 @@ const createVisitor = (data) => {
     }
     const { browser, os } = parseUA(data.userAgent);
     const id = generateId();
+    // sessionSeed : matériel cryptographique unique de la session.
+    // Alimentera le watermark (refractor.js) pour tracer la fuite si les données sont revendues.
+    // Immuable après création : même si le score change, l'empreinte reste stable.
+    const sessionSeed = crypto.randomBytes(16).toString('hex');
     const visitor = {
         id,
+        sessionSeed,
         startTime:  Date.now(),
         lastSeen:   Date.now(),
         ip:         data.ip        || 'unknown',

@@ -198,6 +198,108 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
+
+        /* ── Prisme Status Badge ── */
+        #prism-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            cursor: default;
+            transition: all 0.4s;
+            letter-spacing: 0.02em;
+        }
+        #prism-badge .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+            animation: pulse-dot 2s infinite;
+        }
+        #prism-badge.suspect .dot { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+        #prism-badge.degraded .dot { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+
+        /* ── Live API Demo Prisme ── */
+        .prism-demo {
+            padding: 5rem 5%;
+            background: linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.04) 100%);
+            border-top: 1px solid var(--card-border);
+        }
+        .prism-demo-inner { max-width: 900px; margin: 0 auto; }
+        .prism-demo-header { text-align: center; margin-bottom: 2.5rem; }
+        .prism-demo-header h2 { font-size: 2rem; margin-bottom: 0.75rem; }
+        .prism-demo-header p { color: var(--text-secondary); }
+        .prism-meta {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            font-size: 0.8rem;
+        }
+        .prism-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .prism-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .prism-table th {
+            text-align: left;
+            padding: 0.6rem 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .prism-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-primary);
+        }
+        .prism-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .tag-actionable { color: #10b981; font-size: 0.7rem; font-weight: 600; }
+        .tag-cosmetic   { color: #6366f1; font-size: 0.7rem; font-weight: 600; }
+        .tag-aggregate  { color: #f59e0b; font-size: 0.7rem; font-weight: 600; }
+        .prism-lane {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .prism-lane.rich       { background: rgba(16,185,129,0.15); color: #10b981; }
+        .prism-lane.accessible { background: rgba(245,158,11,0.15);  color: #f59e0b; }
+        .suspicion-bar {
+            height: 4px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+        .suspicion-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease, background 0.8s ease;
+        }
+
         }
         .card {
             background: var(--card-bg);
@@ -295,6 +397,10 @@
             <a href="#">Enterprise</a>
         </div>
         <div class="nav-actions">
+            <span id="prism-badge" title="Statut de votre session Prisme">
+                <span class="dot"></span>
+                <span id="prism-badge-text">Prisme •••</span>
+            </span>
             <a href="/app" class="btn btn-outline">Log in</a>
             <a href="/register" class="btn btn-primary">Get Started</a>
         </div>
@@ -371,6 +477,43 @@
         <div class="stat-item">
             <h4>180+</h4>
             <p>Countries</p>
+        </div>
+    </section>
+
+    <!-- Section Live API Demo — Données réfractées par le Prisme -->
+    <section class="prism-demo" id="prism-live">
+        <div class="prism-demo-inner">
+            <div class="prism-demo-header">
+                <h2>🌈 Architecture Prisme — Live Demo</h2>
+                <p>Ces données sont réfractées en temps réel selon votre score de session.
+                Les champs <span class="tag-actionable">🛡️ ACTIONABLE</span> sont toujours exacts,
+                <span class="tag-cosmetic">💄 COSMETIC</span> portent votre filigrane de session,
+                <span class="tag-aggregate">🎲 AGGREGATE</span> sont empoisonnés (agrégat inutilisable).</p>
+            </div>
+            <div class="prism-meta" id="prism-meta">
+                <div class="prism-meta-item">🎯 Suspicion : <strong id="pm-suspicion">—</strong></div>
+                <div class="prism-meta-item">🔀 Voie : <strong id="pm-lane">—</strong></div>
+                <div class="prism-meta-item">📊 Score : <strong id="pm-score">—</strong></div>
+                <div class="prism-meta-item">⏱️ Friction : <strong id="pm-friction">—</strong></div>
+                <div class="prism-meta-item">🔑 Seed : <strong id="pm-seed">—</strong></div>
+            </div>
+            <div class="suspicion-bar"><div class="suspicion-fill" id="suspicion-fill"></div></div>
+            <br>
+            <table class="prism-table">
+                <thead>
+                    <tr>
+                        <th>Service <span class="tag-actionable">🛡️</span></th>
+                        <th>Endpoint <span class="tag-cosmetic">💄</span></th>
+                        <th>Description <span class="tag-cosmetic">💄</span></th>
+                        <th>Requests <span class="tag-aggregate">🎲</span></th>
+                        <th>Latency <span class="tag-aggregate">🎲</span></th>
+                        <th>Uptime <span class="tag-actionable">🛡️</span></th>
+                    </tr>
+                </thead>
+                <tbody id="prism-table-body">
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:2rem">Chargement…</td></tr>
+                </tbody>
+            </table>
         </div>
     </section>
 
@@ -500,6 +643,67 @@
                 this.reset();
             }, 1000);
         });
+
+        // ── Architecture Prisme — Affichage statut + données réfractées ──────────────
+        async function loadPrismStatus() {
+            try {
+                const [statusRes, demoRes] = await Promise.all([
+                    fetch('/api/prism/status'),
+                    fetch('/api/prism/demo'),
+                ]);
+                const status = await statusRes.json();
+                const demo   = await demoRes.json();
+
+                // Badge navbar
+                const badge = document.getElementById('prism-badge');
+                const badgeText = document.getElementById('prism-badge-text');
+                const s = status.suspicion;
+                if (s < 0.3) {
+                    badge.className = '';
+                    badgeText.textContent = `Prisme • Voie ${status.lane} (${Math.round(s * 100)}%)`;
+                } else if (s < 0.65) {
+                    badge.className = 'suspect';
+                    badgeText.textContent = `Prisme • Suspecte (${Math.round(s * 100)}%)`;
+                } else {
+                    badge.className = 'degraded';
+                    badgeText.textContent = `Prisme • Dégradée (${Math.round(s * 100)}%)`;
+                }
+
+                // Métadonnées
+                document.getElementById('pm-suspicion').textContent = (s * 100).toFixed(0) + '%';
+                document.getElementById('pm-lane').innerHTML = `<span class="prism-lane ${status.lane}">${status.lane}</span>`;
+                document.getElementById('pm-score').textContent  = status.score !== null ? status.score + '/100' : 'N/A';
+                document.getElementById('pm-friction').textContent = status.frictionMs + 'ms';
+                document.getElementById('pm-seed').textContent  = status.sessionSeed || 'N/A';
+
+                // Barre de suspicion colorée
+                const fill = document.getElementById('suspicion-fill');
+                const pct  = (s * 100).toFixed(1);
+                fill.style.width = pct + '%';
+                fill.style.background = s < 0.3 ? '#10b981' : s < 0.65 ? '#f59e0b' : '#ef4444';
+
+                // Tableau de données réfractées
+                const tbody = document.getElementById('prism-table-body');
+                tbody.innerHTML = '';
+                for (const row of demo.data) {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${row.name} <span style="color:var(--text-secondary);font-size:0.75rem">${row.region}</span></td>
+                            <td><code style="color:#a78bfa;font-size:0.8rem">${row.endpoint}</code></td>
+                            <td>${row.description}</td>
+                            <td>${(row.requests||0).toLocaleString('fr-FR')}</td>
+                            <td>${row.latency_ms}ms</td>
+                            <td><span style="color:#10b981;font-weight:600">${row.uptime}</span></td>
+                        </tr>`;
+                }
+            } catch (e) {
+                console.warn('[PRISM] Status load failed', e);
+            }
+        }
+
+        // Chargement initial + refresh toutes les 30s
+        loadPrismStatus();
+        setInterval(loadPrismStatus, 30000);
     </script>
 </body>
 </html>

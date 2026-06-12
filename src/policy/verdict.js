@@ -22,6 +22,7 @@
 // plus jamais déclencher de bannissement à lui seul.
 
 const { verdict: T } = require('../config/tuning');
+const { toSuspicion } = require('../prism/suspicion');
 const TRUST_THRESHOLD    = T.trustThreshold;
 const STRIKE_THRESHOLD   = T.strikeThreshold;
 const SIGNIFICANT_SIGNAL = T.significantSignal;
@@ -30,7 +31,8 @@ const SIGNIFICANT_SIGNAL = T.significantSignal;
 // IMPORTANT : une COUCHE = une entrée = un témoin. Si une couche logique est éclatée
 // en plusieurs modules (ex. L1 réseau + L1 TLS), l'orchestrateur DOIT les fusionner en
 // UNE entrée avant d'appeler decide(), sinon elle compterait pour 2 témoins (revue).
-// Retourne { allowed, ban, score, reasons, witnesses, declarative }.
+// Retourne { allowed, ban, score, suspicion, reasons, witnesses, declarative }.
+// `suspicion` ∈ [0.0, 1.0] : scalaire continu pour Architecture Prisme (réfraction + friction).
 const decide = (layerResults) => {
     let score = 100;
     const reasons = [];
@@ -54,7 +56,12 @@ const decide = (layerResults) => {
     // pile à TRUST_THRESHOLD (ex. employé RDP) — le durcir bloquerait ce cas.
     const allowed = score >= TRUST_THRESHOLD && !ban;
 
-    return { allowed, ban, score, reasons, witnesses, declarative };
+    // Architecture Prisme : scalaire continu [0.0, 1.0] pour moduler la réfraction
+    // et la friction SANS bloquer. Un score de 55 → suspicion 0.45 → friction légère.
+    const suspicion = toSuspicion(score);
+
+    return { allowed, ban, score, suspicion, reasons, witnesses, declarative };
 };
 
 module.exports = { decide, TRUST_THRESHOLD, STRIKE_THRESHOLD, SIGNIFICANT_SIGNAL };
+

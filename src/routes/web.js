@@ -11,16 +11,22 @@ const VIEWS_ROOT = path.join(__dirname, '../views');
 router.use(visitorTracker);
 
 // --- LE BOUCLIER (GATEWAY ABSOLUE) ---
-// Aucun bot ne verra le code des pages suivantes s'il ne passe pas ce test.
+// Architecture Prisme : plus de porte dure.
+// Les bots déclaratifs (UA Googlebot, curl, GPTBot…) ne sont plus redirigés vers Google.
+// Ils reçoivent la voie accessible : contenu réel, filigranée + empoisonné + tracé.
+// → Un bot qui se déclare honnêtement est traçable par son sessionSeed.
+// → Un humain utilisant curl (dev) n'est jamais bloqué.
+// → La porte Google disparaît : elle ne servait qu'à cacher, pas à défendre.
 const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW
     if (req.path.startsWith('/admin')) return next();
 
-    // Fast-path : bot déclaré (UA Googlebot, curl, GPTBot…) → Google immédiatement,
-    // sans servir la gateway (économise une connexion et ne révèle rien du site).
+    // Bot déclaré (UA Googlebot, curl, GPTBot…) → voie accessible avec suspicion max
+    // au lieu de redirection Google (Règle 1 : aucune porte).
     if (req.l1Signals && req.l1Signals.declarative) {
-        console.log(`[FAST_REDIRECT] Bot déclaré (${req.headers['user-agent'] || '?'}), redirection immédiate. IP: ${req.ip}`);
-        return res.redirect(302, 'https://www.google.com');
+        console.log(`[PRISM] Bot déclaré (${req.headers['user-agent'] || '?'}), voie accessible — IP: ${req.ip}`);
+        req.prismaForced = { suspicion: 1.0, lane: 'accessible', reason: 'declarative_bot' };
+        return next(); // on laisse passer — le contenu sera réfracté
     }
 
     const ip = req.ip || '';

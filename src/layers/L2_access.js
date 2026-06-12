@@ -103,19 +103,20 @@ const isDatacenter = (ip) => {
     return DATACENTER_CIDRS.some(([base, bits]) => inCidr(ipInt, base, bits));
 };
 
-// Middleware : barrière dure pour les IP temporairement bannies.
+// Middleware : plus de porte dure — Architecture Prisme.
+// Les IP bannies ne sont plus bloquées ni redirigées.
+// On marque req.prismaForced pour que le BFF serve la voie accessible
+// avec suspicion maximale (données filigranées + empoisonnées + friction plafonnée).
+// Invariant : un humain derrière un CGNAT qui partage une IP bannie peut toujours utiliser le site.
 const middleware = (req, res, next) => {
     const ip = req.ip || '';
-    // Whitelist : jamais bloqué, jamais redirigé
+    // Whitelist : jamais de friction, jamais de dégradation
     if (isWhitelisted(ip)) return next();
     if (reputation.isBanned(ip)) {
-        console.log(`[L2_ACCESS] IP bannie temporairement: ${ip}`);
-        if (req.method === 'GET' && !req.path.startsWith('/api')) {
-            return res.redirect('https://www.google.com');
-        }
-        return res.status(403).send('Forbidden.');
+        console.log(`[L2_ACCESS] IP bannie — voie accessible forcée (suspicion max): ${ip}`);
+        req.prismaForced = { suspicion: 1.0, lane: 'accessible', reason: 'ip_banned' };
     }
-    next();
+    next(); // toujours next() — pas de porte
 };
 
 // Vélocité (rapport bots #3 : « volumes d'actions anormalement élevés ») :
