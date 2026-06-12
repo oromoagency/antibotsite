@@ -54,8 +54,9 @@ const isCloudflareIp = (ip) => {
 // bypasser les bans IP.
 app.use((req, res, next) => {
     const cfIp = req.headers['cf-connecting-ip'];
-    const remoteIp = req.socket.remoteAddress || '';
-    if (cfIp && isCloudflareIp(remoteIp)) {
+    // Express avec 'trust proxy: 1' place l'IP vue par Render (Cloudflare) dans req.ip.
+    // On valide donc req.ip, et non remoteIp (qui est l'IP interne du load balancer Render).
+    if (cfIp && isCloudflareIp(req.ip)) {
         Object.defineProperty(req, 'ip', { get: () => cfIp, configurable: true });
     }
     next();

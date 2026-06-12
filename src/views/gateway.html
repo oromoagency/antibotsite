@@ -181,7 +181,7 @@ function detectFonts() {
 }
 
 async function getBattery() {
-    try { const b = await navigator.getBattery(); return { level: Math.round(b.level * 100), charging: b.charging, chargingTime: b.chargingTime, dischargingTime: b.dischargingTime }; }
+    try { const b = await navigator.getBattery(); return { level: b.level, charging: b.charging, chargingTime: b.chargingTime, dischargingTime: b.dischargingTime }; }
     catch { return null; }
 }
 
