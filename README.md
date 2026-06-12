@@ -15,6 +15,7 @@ Un système de protection anti-bot **enterprise-grade** conçu pour distinguer l
 - 🖥️ **Empreinte matérielle** : WebGL, Canvas, AudioContext, WebGPU
 - 🌐 **Intelligence de flotte** : posture adaptative sous attaque distribuée
 - 🍯 **Pièges honeypot** : LLM injection, formulaires fantômes, boutons invisibles
+- 🌈 **Prisme SDK Intégré** : Réfraction de données (Jitter/Watermark), Révélation Progressive, Entropie Comportementale et Honeypot Structurel.
 - 🔐 **Sessions chiffrées** : tokens AES-256, anti-CSRF, durée 2h
 - 📊 **Tableau de bord admin** : observabilité en temps réel
 - ✅ **Anti-faux-positifs** : navigateurs vie-privée, RDP, accessibilité, CGNAT

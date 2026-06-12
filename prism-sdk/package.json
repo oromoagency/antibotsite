@@ -1,0 +1,22 @@
+{
+  "name": "prism-defense",
+  "version": "1.0.0",
+  "description": "L'architecture Prisme - Défense anti-scraping par l'économie",
+  "main": "src/server/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "anti-scraping",
+    "bot",
+    "defense",
+    "honeypot",
+    "entropy",
+    "pow"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  }
+}

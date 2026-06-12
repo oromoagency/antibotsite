@@ -8,6 +8,7 @@ const L7_session           = require('../layers/L7_session');
 const { refract, currentEpoch } = require('../prism/refractor');
 const { toSuspicion, frictionMs, chooseLane, delay, getSuspicion, getSessionSeed, getLane } = require('../prism/suspicion');
 const visitors = require('../store/visitors');
+const honeypot = require('../../prism-sdk/src/server/honeypot');
 
 // --- Antibot pipeline ---
 router.get('/challenge-config',    validationController.getChallengeConfig);
@@ -43,6 +44,10 @@ router.post('/track/event', trackingController.recordEvent);
 // --- Auth endpoints (honeypots pour bots credential stuffing) ---
 router.post('/auth/login',    trackingController.recordLoginAttempt);
 router.post('/auth/register', trackingController.recordRegister);
+
+// --- Honeypot API Trap ---
+// Route fantôme générée par l'injecteur. Si appelée, c'est un bot garanti.
+router.get('/__internal/v2/stats/*', honeypot.honeypotTrapMiddleware);
 
 // --- Fausse API publique (attire les scrapers — données réfractées) ---
 // Ces routes SEMBLENT exposer des données sensibles mais retournent toujours refract(data).
@@ -90,8 +95,11 @@ router.get('/prism/demo', async (req, res) => {
 
     // Règle 2 : on ne renvoie JAMAIS data brut — toujours refract(data, …)
     const data = refract(DEMO_DATASET, DEMO_POLICY, sessionSeed, currentEpoch());
+    
+    // Règle 3 : On injecte un piège structurel (Honeypot) pour attraper les bots
+    const trappedData = honeypot.injectHoneypot(data, sessionSeed);
 
-    res.json({ lane, suspicion: parseFloat(suspicion.toFixed(2)), data });
+    res.json({ lane, suspicion: parseFloat(suspicion.toFixed(2)), data: trappedData });
 });
 
 // --- Fake demo API (anciens endpoints — conservés, maintenant réfractés) ---
@@ -128,7 +136,9 @@ router.get('/demo/v1/users', async (req, res) => {
     await delay(frictionMs(suspicion));
     // Règle 2 : toujours refract() — jamais data brut
     const data = refract(USERS_DATASET, USERS_POLICY, sessionSeed, currentEpoch());
-    res.json({ data, meta: { total: data.length } });
+    const trappedData = honeypot.injectHoneypot(data, sessionSeed);
+    
+    res.json({ data: trappedData, meta: { total: data.length } });
 });
 // /demo/v1/keys supprimé — était une route 401 vide qui ajoutait de la surface sans valeur
 
