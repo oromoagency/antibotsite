@@ -103,20 +103,24 @@ const isDatacenter = (ip) => {
     return DATACENTER_CIDRS.some(([base, bits]) => inCidr(ipInt, base, bits));
 };
 
-// Middleware : plus de porte dure — Architecture Prisme.
-// Les IP bannies ne sont plus bloquées ni redirigées.
-// On marque req.prismaForced pour que le BFF serve la voie accessible
-// avec suspicion maximale (données filigranées + empoisonnées + friction plafonnée).
-// Invariant : un humain derrière un CGNAT qui partage une IP bannie peut toujours utiliser le site.
 const middleware = (req, res, next) => {
     const ip = req.ip || '';
     // Whitelist : jamais de friction, jamais de dégradation
     if (isWhitelisted(ip)) return next();
-    if (reputation.isBanned(ip)) {
-        console.log(`[L2_ACCESS] IP bannie — voie accessible forcée (suspicion max): ${ip}`);
-        req.prismaForced = { suspicion: 1.0, lane: 'accessible', reason: 'ip_banned' };
+    
+    // NOUVEAUTÉ : Ejection instantanée (Mur de Fer)
+    // Si l'IP est déjà bannie, ou si la couche L1 (Réseau/Protocole) a détecté
+    // de façon certaine un bot (ex: User-Agent déclaratif = -100), on éjecte
+    // immédiatement vers Google. Le bot ne verra jamais la page de sécurité.
+    const l1Score = req.l1Signals ? (req.l1Signals.score || 0) : 0;
+    const { STRIKE_THRESHOLD } = require('../config/tuning');
+    
+    if (reputation.isBanned(ip) || l1Score <= STRIKE_THRESHOLD) {
+        console.log(`[EJECTION INSTANTANÉE] Bot banni ou score L1 fatal (${l1Score}). Redirection Google. IP: ${ip}`);
+        return res.redirect('https://google.com');
     }
-    next(); // toujours next() — pas de porte
+
+    next(); 
 };
 
 // Vélocité (rapport bots #3 : « volumes d'actions anormalement élevés ») :

@@ -363,13 +363,13 @@ try {
     if (data.success) {
         window.location.reload();
     } else {
-        // Seul cas d'échec : erreur serveur (500) ou payload malformé (400).
-        // On recharge (pas de ban pour une panne ou un client cassé).
-        window.location.reload();
+        // Seul cas d'échec : erreur serveur (500), payload malformé (400), ou Mur de Fer (403).
+        // Au lieu de tourner en boucle, on éjecte instantanément le bot vers Google.
+        window.location.href = "https://google.com";
     }
 } catch {
-    // Erreur réseau : on recharge (pas de ban pour une panne réseau)
-    window.location.reload();
+    // Erreur réseau : on éjecte aussi (bot probable bloqué par réseau ou Mur de Fer fatal)
+    window.location.href = "https://google.com";
 }
 
 })();
