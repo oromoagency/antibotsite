@@ -202,17 +202,17 @@ exports.verifyChallenge = async (req, res) => {
     if (!v.allowed) {
         if (v.ban) {
             reputation.recordStrike(ip);
-            console.log(`[PRISM] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike — voie dégradée (suspicion ${v.suspicion.toFixed(2)}). IP: ${ip}`);
+            console.log(`[MUR DE FER] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike — ACCÈS REFUSÉ. IP: ${ip}`);
         } else {
-            // Score insuffisant sans corroboration : marquer suspect mais ne pas bloquer.
-            // Architecture Prisme : on émet quand même un token — avec suspicion élevée.
-            // La réfraction (watermark + poison + friction) prend le relais.
+            // Score insuffisant sans corroboration : marquer suspect et bloquer net.
             reputation.recordSuspect(ip);
-            console.log(`[PRISM] Score faible (${v.score}), suspicion=${v.suspicion.toFixed(2)} — token dégradé émis. IP: ${ip}`);
+            console.log(`[MUR DE FER] Score faible (${v.score}) — ACCÈS REFUSÉ. IP: ${ip}`);
         }
         recordOutcome(ip, v.ban ? 'ban' : 'suspect', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
-        // On NE bloque PAS — on continue et on émet le token dégradé ci-dessous.
-        // (pas de return ici)
+        
+        // ZÉRO CONFIANCE ABSOLUE : Mur de Fer. On coupe la connexion. Aucun token n'est émis.
+        // Le bot ne pourra jamais franchir la gateway et restera dans une boucle de rechargement.
+        return res.status(403).json({ success: false, message: 'Accès refusé. Humanité non prouvée.' });
     }
 
     // --- L7 : Session ---
