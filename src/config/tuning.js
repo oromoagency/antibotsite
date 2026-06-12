@@ -73,6 +73,10 @@ module.exports = {
         sensorDesync:   -100,  // injection JS d'événements d'entrée (preuve)
         incompleteFp:    -20,  // payload malformé (UA absent)
         webgpuAbsent:    -20,  // Camoufox : Chrome≥113 + WebGL OK + WebGPU absent
+        // battery.level est toujours 0.0-1.0 par spec W3C Battery Status API.
+        // Une valeur > 1.0 (ex. 100 → 10000%) = bot qui envoie le mauvais format.
+        // Jamais observé sur un vrai navigateur dans nos données de trafic.
+        batterySpoof:    -30,
     },
 
     // ── L5 · Automation / CDP ──────────────────────────────────────────────────
@@ -97,7 +101,14 @@ module.exports = {
         missingKeyboard:     0, // souris sans clavier — intentionnellement neutre
         teleport:          -70, // saut > 300px en < 50ms (clic par coordonnées VLM)
         straightLine:      -60, // trajectoire parfaitement linéaire
-        syntheticInject:   -50, // pointerdown absent ou pression/géométrie nulles (CDP)
+        // Deux niveaux pour "injection CDP via souris" :
+        //   noPointerdown : moves sans aucun clic — signal FAIBLE car un humain
+        //     qui attend la résolution PoW bouge sa souris sans jamais cliquer
+        //     (il n'y a rien à cliquer sur la page). Baisser à -5 évite les FP.
+        //   syntheticInject : pointerdown avec pression=0 ou géométrie=0 — signature
+        //     CDP forte, un vrai périphérique a toujours pression et géométrie.
+        noPointerdown:      -5, // moves mais aucun clic — normal sur page PoW auto-résolue
+        syntheticInject:   -50, // pressure=0 ou geometry=0 sur pointerdown (CDP confirmé)
         smoothed:          -80, // jerk nul (trajectoire générée)
         flatCadence:       -40, // dwell times identiques (frappe injectée)
         superhumanTyping:  -40, // vol moyen < 8ms (injection en rafale)

@@ -40,9 +40,10 @@ const ABSENCE_CAP               = _T.absence.cap;
 const SENSOR_DESYNC_PENALTY     = _T.sensorDesync;
 const INCOMPLETE_FP_PENALTY     = _T.incompleteFp;
 const WEBGPU_ABSENT_PENALTY     = _T.webgpuAbsent;
+const BATTERY_SPOOF_PENALTY     = _T.batterySpoof;
 
 // Retourne { score, reasons }
-const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint }) => {
+const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, battery }) => {
     let evidence = 0; // preuves fortes (non plafonnées)
     let absence = 0;  // signaux absents (plafonnés)
     const reasons = [];
@@ -104,6 +105,14 @@ const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint }) =>
             evidence += WEBGPU_ABSENT_PENALTY;
             reasons.push('WebGPU absent sur Chrome ≥113 avec WebGL actif (Camoufox/build patchée)');
         }
+    }
+
+    // --- Batterie : level est toujours 0.0-1.0 par spec W3C ---
+    // Une valeur > 1.0 (ex. level: 100 → affiché "10000%") = bot qui envoie
+    // le mauvais format. Jamais vu sur un vrai navigateur dans nos données.
+    if (battery && typeof battery.level === 'number' && battery.level > 1.0) {
+        evidence += BATTERY_SPOOF_PENALTY;
+        reasons.push(`Batterie spoofée (${Math.round(battery.level * 100)}% — impossible, spec W3C = 0.0-1.0)`);
     }
 
     return { score: evidence + Math.max(absence, ABSENCE_CAP), reasons };

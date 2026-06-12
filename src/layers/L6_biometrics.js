@@ -27,6 +27,7 @@ const TELEPORT_MAX_DT_MS = 50;  // au-delà : trou d'échantillonnage (jank), pa
 const { L6: _T } = require('../config/tuning');
 const TELEPORT_PENALTY          = _T.teleport;
 const STRAIGHT_LINE_PENALTY     = _T.straightLine;
+const NO_POINTERDOWN_PENALTY    = _T.noPointerdown;
 const SYNTHETIC_INJECT_PENALTY  = _T.syntheticInject;
 const NO_INTERACTION_PENALTY    = _T.noInteraction;
 const MISSING_POINTER_PENALTY   = _T.missingPointer;
@@ -147,7 +148,10 @@ const analyzeBracket = (mousePoints) => {
 
     const downs = mousePoints.filter(pt => pt.et === 'down');
     if (downs.length === 0) {
-        return { score: SYNTHETIC_INJECT_PENALTY, reason: 'Trajectoire souris sans pointerdown (injection CDP)' };
+        // Signal FAIBLE : un humain sur une page PoW auto-résolue bouge sa souris
+        // sans jamais cliquer (rien à cliquer). On garde -5 pour ne pas fausser
+        // le verdict mais on n'applique plus le -50 réservé aux vrais indicateurs CDP.
+        return { score: NO_POINTERDOWN_PENALTY, reason: 'Trajectoire souris sans clic détecté' };
     }
 
     let score = 0;

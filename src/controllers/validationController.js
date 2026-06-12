@@ -128,6 +128,7 @@ exports.verifyChallenge = async (req, res) => {
         audio: hardware && hardware.audio,
         webgpu: hardware ? hardware.webgpu : undefined,
         sensorDesync, fingerprint,
+        battery: visitor ? visitor.battery : null,
     });
 
     // --- L5 : Détection d'automatisation ---
