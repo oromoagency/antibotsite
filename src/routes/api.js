@@ -5,8 +5,9 @@ const adminController      = require('../controllers/adminController');
 const trackingController   = require('../controllers/trackingController');
 const telegramController   = require('../controllers/telegramController');
 const L7_session           = require('../layers/L7_session');
-const { refract, currentEpoch } = require('../prism/refractor');
-const { toSuspicion, frictionMs, chooseLane, delay, getSuspicion, getSessionSeed, getLane } = require('../prism/suspicion');
+const { refract, currentEpoch } = require('../../prism-sdk/src/server/refractor');
+const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
+const { chooseLane, delay, getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
 const visitors = require('../store/visitors');
 const honeypot = require('../../prism-sdk/src/server/honeypot');
 
@@ -47,7 +48,7 @@ router.post('/auth/register', trackingController.recordRegister);
 
 // --- Honeypot API Trap ---
 // Route fantôme générée par l'injecteur. Si appelée, c'est un bot garanti.
-router.get('/__internal/v2/stats/*', honeypot.honeypotTrapMiddleware);
+router.use('/__internal/v2/stats', honeypot.honeypotTrapMiddleware);
 
 // --- Fausse API publique (attire les scrapers — données réfractées) ---
 // Ces routes SEMBLENT exposer des données sensibles mais retournent toujours refract(data).
