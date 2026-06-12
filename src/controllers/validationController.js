@@ -217,9 +217,10 @@ exports.verifyChallenge = async (req, res) => {
 
     // --- L7 : Session ---
     // Architecture Prisme : le token est émis pour TOUT le monde (allowed ET non-allowed).
-    // La suspicion est encodée pour que le BFF puisse réfracter selon le niveau de risque.
+    // La suspicion et le sessionSeed sont encodés dans le JWT (AES-256) pour survivre
+    // aux redémarrages Render — le store RAM est volatile, le cookie ne l'est pas.
     usedNonces.add(nonce);
-    const token = L7_session.createToken(ip, fingerprint, v.score);
+    const token = L7_session.createToken(ip, fingerprint, v.score, v.suspicion, visitor.sessionSeed);
     res.cookie('human_auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

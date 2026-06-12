@@ -40,25 +40,59 @@ const chooseLane = (canRender) => (canRender ? 'rich' : 'accessible');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const delay = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
-// Extrait la suspicion d'une requête enrichie par le middleware L2 ou L7
+const L7_session = require('../layers/L7_session');
+
+// Extrait la suspicion d'une requête — ordre de priorité :
+//   1. req.prismaForced (IP bannie ou bot déclaratif) — priorité absolue
+//   2. JWT cookie human_auth_token — source de vérité persistante (survit aux redémarrages)
+//   3. Store RAM visitors.js — fallback si le cookie est absent (pré-challenge)
+//   4. 0.5 — valeur neutre (session inconnue, pas encore passé le PoW)
 const getSuspicion = (req, visitors) => {
-    // Priorité 1 : suspicion forcée par L2 (IP bannie)
+    // Priorité 1 : suspicion forcée par L2 (IP bannie) ou web.js (bot déclaratif)
     if (req.prismaForced) return req.prismaForced.suspicion || 1.0;
 
-    // Priorité 2 : score de la session visiteur (post-PoW)
+    // Priorité 2 : JWT cookie — persistant même après redémarrage Render
+    const tokenResult = L7_session.verifyToken(req.cookies && req.cookies['human_auth_token']);
+    if (tokenResult.valid && typeof tokenResult.data.suspicion === 'number') {
+        return tokenResult.data.suspicion;
+    }
+
+    // Priorité 3 : store RAM (valide pendant la session serveur courante)
     const sessionId = req.cookies && req.cookies['_nx_session'];
     if (sessionId && visitors) {
         const v = visitors.getVisitor(sessionId);
         if (v && v.score !== undefined) return toSuspicion(v.score);
     }
 
-    // Priorité 3 : pas de session = suspicion neutre (n'a pas encore fait le PoW)
+    // Priorité 4 : neutre (n'a pas encore fait le PoW)
     return 0.5;
+};
+
+// Extrait le sessionSeed — même ordre de priorité que getSuspicion.
+// Le sessionSeed est la clé du watermark — il doit être stable sur toute la session.
+const getSessionSeed = (req, visitors) => {
+    // Priorité 1 : req.prismaForced (bot déclaratif — seed basé sur IP pour traçabilité)
+    if (req.prismaForced) return 'forced-' + (req.ip || 'unknown');
+
+    // Priorité 2 : JWT cookie — source de vérité persistante
+    const tokenResult = L7_session.verifyToken(req.cookies && req.cookies['human_auth_token']);
+    if (tokenResult.valid && typeof tokenResult.data.sessionSeed === 'string') {
+        return tokenResult.data.sessionSeed;
+    }
+
+    // Priorité 3 : store RAM
+    const sessionId = req.cookies && req.cookies['_nx_session'];
+    if (sessionId && visitors) {
+        const v = visitors.getVisitor(sessionId);
+        if (v && v.sessionSeed) return v.sessionSeed;
+    }
+
+    // Priorité 4 : anonyme (basé sur IP pour rester traçable)
+    return 'anonymous-' + (req.ip || 'unknown');
 };
 
 const getLane = (req) => {
     if (req.prismaForced && req.prismaForced.lane) return req.prismaForced.lane;
-    // Par défaut on considère que le navigateur peut rendre (la gateway a validé)
     return chooseLane(true);
 };
 
@@ -68,6 +102,7 @@ module.exports = {
     chooseLane,
     delay,
     getSuspicion,
+    getSessionSeed,
     getLane,
     HUMAN_SAFE_CAP_MS,
     MAX_RAW_DELAY_MS,
