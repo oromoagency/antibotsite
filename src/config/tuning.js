@@ -84,7 +84,7 @@ module.exports = {
         webdriverNative:  -100, // navigator.webdriver === true (Selenium/Playwright brut)
         stealthArtifacts:  -80, // $cdc_, $wdc_ — artefacts ChromeDriver uniquement
         webdriverPatched:  -60, // accesseur webdriver réécrit (furtivité active)
-        cdpProxyTrap:      -10, // piège Proxy — FP possible Chrome Mobile → signal faible
+        cdpProxyTrap:        0, // DÉSACTIVÉ : déclenché par Chrome interne/extensions sans DevTools
         cdpStackTrap:      -10, // piège Error.stack
         firefoxDriver:     -40, // attribut webdriver sur <html> (geckodriver/Marionette)
         vsyncAbsent:       -20, // aucun frame rAF → pas de compositeur graphique réel
@@ -93,10 +93,9 @@ module.exports = {
 
     // ── L6 · Biométrie ─────────────────────────────────────────────────────────
     L6: {
-        // -50 : bot qui exécute le JS (passe le timeout 15s) mais reste immobile.
-        // Combiné à 1 seul autre témoin (CDP, datacenter, renderer), score < 60 → BLOCK.
-        // Anti-FP : un humain clavier-seul produit ≥5 frappes → prend missingPointer (-5).
-        noInteraction:     -50,
+        // -40 : humain immobile. 100-40 = 60 (Seuil de confiance).
+        // Combiné à 1 seul autre témoin (datacenter -15, etc.), score < 60 → BLOCK.
+        noInteraction:     -40,
         missingPointer:     -5, // clavier seul — accessibilité légitime, signal très faible
         missingKeyboard:     0, // souris sans clavier — intentionnellement neutre
         teleport:          -70, // saut > 300px en < 50ms (clic par coordonnées VLM)
