@@ -13,6 +13,8 @@ const webRoutes = require('./routes/web');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {

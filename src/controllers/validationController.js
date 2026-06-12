@@ -56,8 +56,7 @@ exports.getChallengeConfig = (req, res) => {
 };
 
 exports.verifyChallenge = async (req, res) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection.remoteAddress || 'unknown');
+    const ip = req.ip || 'unknown';
     const {
         nonce, timestamp, fingerprint,
         argon2Hash,

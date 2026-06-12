@@ -16,9 +16,7 @@ const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW
     if (req.path.startsWith('/admin')) return next();
 
-    // Exclure les IPs/ASNs en whitelist — passage direct sans PoW
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0].trim() : (req.ip || '');
+    const ip = req.ip || '';
     const visitor = req.visitorId ? require('../store/visitors').getVisitor(req.visitorId) : null;
     const asn = visitor ? visitor.asn : null;
     if (L2_access.isWhitelisted(ip, asn)) {

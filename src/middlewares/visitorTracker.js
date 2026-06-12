@@ -13,11 +13,7 @@ const visitorTracker = (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
     if (req.path === '/favicon.ico') return next();
 
-    // Sur Render, la vraie IP est dans X-Forwarded-For (le serveur est derrière un proxy)
-    const forwarded = req.headers['x-forwarded-for'];
-    const realIp = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection.remoteAddress || 'unknown');
-
-    const ip = realIp;
+    const ip = req.ip || 'unknown';
     const ua = req.headers['user-agent'] || '';
     const referer  = req.headers['referer'] || req.headers['referrer'] || '';
     const language = (req.headers['accept-language'] || '').split(',')[0].trim();

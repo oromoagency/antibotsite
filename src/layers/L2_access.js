@@ -108,8 +108,7 @@ const isDatacenter = (ip) => {
 
 // Middleware : barrière dure pour les IP temporairement bannies.
 const middleware = (req, res, next) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.connection.remoteAddress || '');
+    const ip = req.ip || '';
     // Whitelist : jamais bloqué, jamais redirigé
     if (isWhitelisted(ip)) return next();
     if (reputation.isBanned(ip)) {
