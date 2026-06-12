@@ -306,7 +306,7 @@
                         body: JSON.stringify({
                             type: 'prism_entropy',
                             sessionId,
-                            data: { entropyScore: score }
+                            data: { deltas: score }
                         })
                     }).catch(()=>{});
                 }

@@ -17,6 +17,28 @@ function frictionMs(suspicion) {
 }
 
 /**
+ * Calcule l'Entropie de Shannon à partir d'un tableau de deltas temporels
+ * (Les variations entre deux mouvements de souris consécutifs).
+ */
+function computeEntropyFromDeltas(deltas) {
+    if (!deltas || deltas.length === 0) return 0;
+    
+    const buckets = {};
+    for (const d of deltas) {
+        const bucket = Math.floor(d / 50); // Buckets de 50ms
+        buckets[bucket] = (buckets[bucket] || 0) + 1;
+    }
+    
+    let entropy = 0;
+    const n = deltas.length;
+    for (const key in buckets) {
+        const p = buckets[key] / n;
+        entropy -= p * Math.log2(p);
+    }
+    return parseFloat(entropy.toFixed(3));
+}
+
+/**
  * Calcule la chaleur basée sur les signaux comportementaux (entropie) et réseau
  * @param {Object} signals - { entropy: number, requestFrequency: number }
  * @returns {number} heat (0.0 to 1.0)
@@ -39,5 +61,6 @@ function computeHeat(signals) {
 module.exports = {
     toSuspicion,
     frictionMs,
-    computeHeat
+    computeHeat,
+    computeEntropyFromDeltas
 };

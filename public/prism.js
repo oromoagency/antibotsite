@@ -41,24 +41,10 @@ window.PrismSDK = (function() {
         }
 
         _computeAndSend() {
-            const entropy = this.computeEntropy(this.timings);
-            if (this.callback) this.callback(entropy);
+            // SECURITE (Zero-Day Fix) : Le client n'a plus le droit de calculer
+            // son propre score. Il envoie les deltas bruts au serveur.
+            if (this.callback) this.callback([...this.timings]);
             this.timings = [];
-        }
-
-        computeEntropy(deltas) {
-            const buckets = {};
-            for (const d of deltas) {
-                const bucket = Math.floor(d / 50);
-                buckets[bucket] = (buckets[bucket] || 0) + 1;
-            }
-            let entropy = 0;
-            const n = deltas.length;
-            for (const key in buckets) {
-                const p = buckets[key] / n;
-                entropy -= p * Math.log2(p);
-            }
-            return parseFloat(entropy.toFixed(3));
         }
     }
 

@@ -5,6 +5,7 @@ const config    = require('../config');
 const visitors  = require('../store/visitors');
 const eventLog  = require('../store/eventLog');
 const telegram  = require('./telegramController');
+const { computeHeat, computeEntropyFromDeltas } = require('../../prism-sdk/src/server/suspicion');
 
 // --- Validation token admin (timing-safe) ---
 const tokenValid = (supplied) => {
@@ -74,6 +75,26 @@ exports.recordEvent = (req, res) => {
             break;
         case 'js_error':
             if (v) visitors.updateVisitor(sessionId, { jsErrors: v.jsErrors + 1 });
+            break;
+        case 'prism_entropy':
+            if (v && Array.isArray(data.deltas)) {
+                // SECURITE : Calcul côté serveur des deltas temporels bruts
+                const entropy = computeEntropyFromDeltas(data.deltas);
+                const heat = computeHeat({ entropy, requestFrequency: 1 });
+                
+                // Si la chaleur est > 0.5, c'est que l'entropie est faible (comportement robotique)
+                if (heat > 0.5) {
+                    const penalty = Math.floor(heat * 20); // Jusqu'à -20 points par batch
+                    const newScore = Math.max(0, v.score - penalty);
+                    visitors.updateVisitor(sessionId, { score: newScore, entropy });
+                    if (newScore < 80 && v.score >= 80) {
+                        telegram.notifySuspect(visitors.getVisitor(sessionId)).catch(() => {});
+                    }
+                } else {
+                    visitors.updateVisitor(sessionId, { entropy });
+                }
+                data.computedEntropy = entropy;
+            }
             break;
     }
 

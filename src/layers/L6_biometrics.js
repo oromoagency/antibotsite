@@ -12,8 +12,14 @@
 //     (> 6000 px/s soutenus sur un seul échantillon : hors de portée d'une main).
 //   - ABSENCE de données = signal FAIBLE, pas une preuve : un utilisateur
 //     clavier-seul (accessibilité) n'a aucun point de pointeur.
-// Les agents VLM (G4) injectent des clics souris synthétiques via CDP
 // Input.dispatchMouseEvent : sauts énormes à dt quasi nul → toujours capturés.
+//
+// Anti-Rejeu (Zero-Day Fix) :
+//   - Les trajectoires sont hachées et mises en cache. Si une empreinte géométrique
+//     exactement identique est soumise deux fois, c'est une attaque par rejeu avérée.
+
+const crypto = require('crypto');
+const trajectoryCache = new Map();
 
 // 12 et non 20 (revue) : pendant le minage PoW le thread principal est saturé
 // et un mobile bas de gamme n'émet qu'une douzaine de mousemove en 2 s. 12 points
@@ -220,6 +226,23 @@ const analyze = ({ mouseTrajectory, keystrokes }) => {
     const hasMouse = mouse.length >= MIN_MOUSE_SAMPLES;
     const hasTouch = touch.length >= MIN_TOUCH_SAMPLES;
     const hasKeys = Array.isArray(keystrokes) && keystrokes.length >= MIN_KEYSTROKES;
+
+    // --- Patch de Sécurité Anti-Rejeu (Telemetry Replay) ---
+    if (hasMouse) {
+        const hash = crypto.createHash('sha256').update(JSON.stringify(mouseTrajectory)).digest('hex');
+        const now = Date.now();
+        const expiry = trajectoryCache.get(hash);
+        if (expiry && now < expiry) {
+            return { score: -80, reasons: ['Rejeu biométrique détecté (trajectoire parfaitement identique déjà soumise)'] };
+        }
+        trajectoryCache.set(hash, now + 10 * 60 * 1000); // Expiration dans 10 minutes
+        // Nettoyage paresseux du cache
+        if (trajectoryCache.size > 2000) {
+            for (const [k, v] of trajectoryCache) {
+                if (now > v) trajectoryCache.delete(k);
+            }
+        }
+    }
 
     // --- Présence d'interaction (graduée, jamais cumulée en double) ---
     if (!hasMouse && !hasTouch && !hasKeys) {
