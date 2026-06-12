@@ -36,8 +36,10 @@ const parseUA = (ua = '') => {
 
 // --- Géolocalisation IP via ip-api.com (gratuit, sans clé) ---
 const geolocate = async (ip) => {
-    const privateRanges = /^(::1|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::ffff:)/;
-    if (privateRanges.test(ip)) return null;
+    // Nettoyer le préfixe IPv4-mapped IPv6 (::ffff:) avant de tester si c'est privé
+    const cleanIp = String(ip).replace(/^::ffff:/, '');
+    const privateRanges = /^(::1|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+    if (privateRanges.test(cleanIp)) return null;
     try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 3000);
