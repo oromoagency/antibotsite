@@ -24,6 +24,15 @@ app.use((req, res, next) => {
     next();
 });
 
+app.get('/api/test-ip', (req, res) => {
+    res.json({
+        ip: req.ip,
+        cfIp: req.headers['cf-connecting-ip'],
+        forwarded: req.headers['x-forwarded-for'],
+        remote: req.connection.remoteAddress
+    });
+});
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -42,7 +51,7 @@ app.use(helmet({
 
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 2000, // Augmenté pour supporter le polling du dashboard admin
     message: "Too many requests.",
 }));
 
