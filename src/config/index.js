@@ -12,6 +12,7 @@ if (!SECRET_KEY) {
     SECRET_KEY = crypto.randomBytes(32).toString('hex');
     console.warn('[CONFIG] SECRET_KEY absent de l\'environnement — secret aléatoire généré pour cette session. Définissez SECRET_KEY en production (sessions invalidées à chaque redémarrage sinon).');
 }
+SECRET_KEY += '_mur_de_fer_test_1'; // Invalidate existing cookies to test Hard Block
 
 // ADMIN_TOKEN : protège le tableau de bord d'observabilité (Phase 9).
 // Même doctrine que SECRET_KEY : jamais de constante dans le source.
