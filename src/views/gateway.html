@@ -6,6 +6,16 @@
     <title>NexAPI</title>
     <script src="/argon2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!--
+        Architecture Prisme — Plancher humain absolu (Guide §5 & §7) :
+        Si JavaScript est désactivé, le PoW ne peut pas s'exécuter.
+        On NE bloque PAS l'utilisateur : on lui émet un token de voie accessible
+        (suspicion 1.0) via /api/noscript-entry et on le redirige vers le site.
+        Un humain sans JS verra le contenu réfracté — jamais une page blanche.
+    -->
+    <noscript>
+        <meta http-equiv="refresh" content="0; url=/api/noscript-entry">
+    </noscript>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #0f172a; overflow: hidden; }
