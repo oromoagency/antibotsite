@@ -292,5 +292,26 @@
             }, 1500);
         });
     </script>
+    
+    <!-- Prisme SDK Client -->
+    <script src="/prism.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.PrismSDK.init({
+                onEntropy: (score) => {
+                    const sessionId = document.cookie.split('; ').find(row => row.startsWith('_nx_session='))?.split('=')[1];
+                    fetch('/api/track/event', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({
+                            type: 'prism_entropy',
+                            sessionId,
+                            data: { entropyScore: score }
+                        })
+                    }).catch(()=>{});
+                }
+            });
+        });
+    </script>
 </body>
 </html>
