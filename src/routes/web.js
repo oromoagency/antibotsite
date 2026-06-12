@@ -44,7 +44,8 @@ const requireHuman = (req, res, next) => {
     next();
 };
 
-router.use(requireHuman);
+// DÉSACTIVÉ TEMPORAIREMENT : L'Antibot est en pause pour focus sur Prisma et l'Admin
+// router.use(requireHuman);
 
 // --- Vrai contenu du site (invisible pour les bots) ---
 router.get('/', (req, res) => {

@@ -89,8 +89,11 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Pipeline antibot : couche par couche
-app.use(L1_network.analyze);    // L1 — protocole
-app.use(L2_access.middleware);  // L2 — barrière IP bannies (temporaire)
+// DÉSACTIVÉ TEMPORAIREMENT
+// app.use(L1_network.analyze);    // L1 — protocole
+// Protection antibot activée sur TOUTES les routes.
+// TEMPORAIREMENT DÉSACTIVÉE : Pour permettre le développement de l'Admin et de Prisma.
+// app.use(antibotMiddleware);  // L2 — barrière IP bannies (temporaire)
 
 app.use('/api', apiRoutes);
 app.use('/', webRoutes);
