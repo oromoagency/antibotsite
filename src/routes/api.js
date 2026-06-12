@@ -1,130 +1,140 @@
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
+const config  = require('../config');
+
 const validationController = require('../controllers/validationController');
 const adminController      = require('../controllers/adminController');
 const trackingController   = require('../controllers/trackingController');
 const telegramController   = require('../controllers/telegramController');
 const L7_session           = require('../layers/L7_session');
 const { refract, currentEpoch } = require('../../prism-sdk/src/server/refractor');
+const { getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
 const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
-const { chooseLane, delay, getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
-const visitors = require('../store/visitors');
 const honeypot = require('../../prism-sdk/src/server/honeypot');
 
-// --- Antibot pipeline ---
+// ─── Routes publiques (avant tout gate) ───────────────────────────────────────
 router.get('/challenge-config',    validationController.getChallengeConfig);
 router.post('/verify-challenge',   validationController.verifyChallenge);
 router.post('/feedback-invisible', validationController.recordSilentFeedback);
+router.post('/track/event',        trackingController.recordEvent);
+router.post('/auth/login',         trackingController.recordLoginAttempt);
+router.post('/auth/register',      trackingController.recordRegister);
 
-// --- Écart 1 FIX : Voie accessible pour humains sans JavaScript (Guide §5 & §7) ---
-// Si le PoW ne peut pas s'exécuter (JS désactivé), la gateway redirige ici via <noscript>.
-// On émet un token dégradé (suspicion 1.0, lane accessible) SANS exiger le PoW.
-// Invariant : un humain sans JS peut toujours terminer sa tâche — jamais de page blanche.
-// Sécurité : un bot qui contourne JS peut aussi trouver cette route.
-//   → Ce n'est pas grave : il reçoit suspicion 1.0 = friction max + data réfractée.
-//   → Le guide dit explicitement qu'une voie accessible doit exister pour les clients sans rendu.
+// Voie accessible pour humains sans JavaScript — invariant humain absolu
 router.get('/noscript-entry', (req, res) => {
     const ip   = req.ip || 'unknown';
-    const seed = 'noscript-' + ip; // seed stable par IP — traçable même sans sessionSeed
-    // Token dégradé : trustScore=0, suspicion=1.0, voie accessible
+    const seed = 'noscript-' + ip;
     const token = L7_session.createToken(ip, { noscript: true }, 0, 1.0, seed);
-    console.log(`[PRISM] Voie accessible émise (noscript) pour IP: ${ip}`);
     res.cookie('human_auth_token', token, {
         httpOnly: true,
         secure:   process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge:   L7_session.SESSION_DURATION_MS,
     });
-    // Redirige vers la landing — requireHuman verra le token valide
     res.redirect('/');
 });
 
-// --- Tracking client-side events ---
-router.post('/track/event', trackingController.recordEvent);
-
-// --- Auth endpoints (honeypots pour bots credential stuffing) ---
-router.post('/auth/login',    trackingController.recordLoginAttempt);
-router.post('/auth/register', trackingController.recordRegister);
-
-// --- Honeypot API Trap ---
-// Route fantôme générée par l'injecteur. Si appelée, c'est un bot garanti.
+// ─── Honeypot invisible ───────────────────────────────────────────────────────
 router.use('/__internal/v2/stats', honeypot.honeypotTrapMiddleware);
 
-// --- Fausse API publique (attire les scrapers — données réfractées) ---
-// Ces routes SEMBLENT exposer des données sensibles mais retournent toujours refract(data).
-// Un scraper récolte des données filigranées (traçables) et empoisonnées (agrégat inutilisable).
+// ─── Gate API : session humaine validée requise ───────────────────────────────
+// Exception : token admin valide passe directement
+const requireHumanApi = (req, res, next) => {
+    // Admin bypass — vérifie x-admin-token avant tout
+    const adminToken = req.headers['x-admin-token'];
+    if (adminToken && config.ADMIN_TOKEN && adminToken === config.ADMIN_TOKEN) {
+        return next();
+    }
+
+    if (!req.visitor?.humanValidated) {
+        return res.status(401).json({ error: 'human_session_required' });
+    }
+    next();
+};
+
+router.use(requireHumanApi);
+
+// ─── Politique de réfraction des données de démo ─────────────────────────────
+// Doctrine Prisme : je ne renvoie JAMAIS data. Je renvoie refract(data, seed).
+// Même pour un humain validé — le watermark est là pour tracer une fuite, pas bloquer.
 const DEMO_POLICY = {
     id:          'actionable',
     name:        'actionable',
     region:      'actionable',
-    uptime:      'actionable',   // donnée contractuelle : intouchable
-    endpoint:    'cosmetic',     // filigranable — trace la session source si ça fuite
+    uptime:      'actionable',
+    endpoint:    'cosmetic',
     description: 'cosmetic',
-    requests:    'aggregate',    // empoisonnable — casse les datasets de veille concurrentielle
+    requests:    'aggregate',
     latency_ms:  'aggregate',
     errorRate:   'aggregate',
 };
 
 const DEMO_DATASET = [
-    { id: 'svc-1', name: 'Core API',     region: 'eu-west',  endpoint: '/api/v1',      description: 'Service robuste et sécurisé',      requests: 2048341, latency_ms: 12, errorRate: 0.02, uptime: '99.98%' },
-    { id: 'svc-2', name: 'Analytics',    region: 'us-east',  endpoint: '/api/analytics', description: 'Moteur avancé et performant',       requests: 891234,  latency_ms: 8,  errorRate: 0.01, uptime: '99.99%' },
-    { id: 'svc-3', name: 'Auth Service', region: 'ap-south', endpoint: '/api/auth',    description: 'Système précis et moderne',          requests: 456789,  latency_ms: 15, errorRate: 0.03, uptime: '99.95%' },
-    { id: 'svc-4', name: 'Gateway',      region: 'eu-west',  endpoint: '/api/gateway', description: 'Routeur intelligent et léger',       requests: 3201045, latency_ms: 6,  errorRate: 0.00, uptime: '100%'   },
+    { id: 'svc-1', name: 'Core API',     region: 'eu-west',  endpoint: '/api/v1',        description: 'Service robuste et securise',   requests: 2048341, latency_ms: 12, errorRate: 0.02, uptime: '99.98%' },
+    { id: 'svc-2', name: 'Analytics',    region: 'us-east',  endpoint: '/api/analytics', description: 'Moteur avance et performant',    requests: 891234,  latency_ms: 8,  errorRate: 0.01, uptime: '99.99%' },
+    { id: 'svc-3', name: 'Auth Service', region: 'ap-south', endpoint: '/api/auth',      description: 'Systeme precis et moderne',      requests: 456789,  latency_ms: 15, errorRate: 0.03, uptime: '99.95%' },
+    { id: 'svc-4', name: 'Gateway',      region: 'eu-west',  endpoint: '/api/gateway',   description: 'Routeur intelligent et leger',   requests: 3201045, latency_ms: 6,  errorRate: 0.00, uptime: '100%'   },
 ];
 
-// GET /api/prism/status — état de la session courante (suspicion + voie)
+// GET /api/prism/status
 router.get('/prism/status', (req, res) => {
-    const suspicion = getSuspicion(req, visitors);
-    const sessionSeed = getSessionSeed(req, visitors);
-    const lane = getLane(req);
+    const suspicion    = getSuspicion(req);
+    const sessionSeed  = getSessionSeed(req);
+    const lane         = getLane(req);
+    const reality      = req.visitor?.prisme?.reality || 'unknown';
     res.json({
         suspicion:   parseFloat(suspicion.toFixed(2)),
         lane,
+        reality,
         frictionMs:  Math.round(frictionMs(suspicion)),
-        sessionSeed: sessionSeed.slice(0, 8) + '…', // tronqué — utile pour le debug, non secret
+        sessionSeed: sessionSeed.slice(0, 8) + '…',
     });
 });
 
-// GET /api/prism/demo — données de démo réfractées (jamais de data brut)
+// GET /api/prism/demo — données toujours réfractées (watermark + poison)
 router.get('/prism/demo', async (req, res) => {
-    const suspicion   = getSuspicion(req, visitors);
-    const sessionSeed = getSessionSeed(req, visitors);
-    const lane        = getLane(req);
+    const seed    = getSessionSeed(req);
+    const epoch   = currentEpoch();
+    const reality = req.visitor?.prisme?.reality || 'normal';
 
-    // Friction graduée — jamais un refus, toujours une réponse
-    await delay(frictionMs(suspicion));
+    const data = refract(DEMO_DATASET, DEMO_POLICY, seed, epoch);
 
-    // Règle 2 : on ne renvoie JAMAIS data brut — toujours refract(data, …)
-    const data = refract(DEMO_DATASET, DEMO_POLICY, sessionSeed, currentEpoch());
-    
-    // Règle 3 : On injecte un piège structurel (Honeypot) pour attraper les bots
-    const trappedData = honeypot.injectHoneypot(data, sessionSeed);
+    // Ajouter honeypot seulement pour les sessions suspectes
+    const payload = (reality === 'decoy' || reality === 'watermarked')
+        ? honeypot.injectHoneypot(data, seed)
+        : data;
 
-    res.json({ lane, suspicion: parseFloat(suspicion.toFixed(2)), data: trappedData });
+    res.json({
+        lane:      getLane(req),
+        suspicion: parseFloat(getSuspicion(req).toFixed(2)),
+        data:      payload,
+        reality,
+    });
 });
 
-// --- Fake demo API (anciens endpoints — conservés, maintenant réfractés) ---
-router.get('/demo/v1/users',   (req, res) => res.json({ data: [{ id: 1, name: 'John Doe', role: 'admin' }], meta: { total: 1 } }));
+// GET /api/demo/v1/metrics — réfracté
+const METRICS_POLICY = {
+    id:          'actionable',
+    requests:    'aggregate',
+    latency_ms:  'aggregate',
+    uptime:      'actionable',
+    region:      'actionable',
+    description: 'cosmetic',
+};
 router.get('/demo/v1/metrics', async (req, res) => {
-    const suspicion   = getSuspicion(req, visitors);
-    const sessionSeed = getSessionSeed(req, visitors);
-    await delay(frictionMs(suspicion));
-    const [item] = refract(
-        [{ id: 'metrics', requests: 2048341, latency_ms: 12, uptime: '99.98%', region: 'eu-west', description: 'Service robuste' }],
-        { id: 'actionable', requests: 'aggregate', latency_ms: 'aggregate', uptime: 'actionable', region: 'actionable', description: 'cosmetic' },
-        sessionSeed, currentEpoch()
-    );
+    const seed  = getSessionSeed(req);
+    const epoch = currentEpoch();
+    const raw   = [{ id: 'metrics', requests: 2048341, latency_ms: 12, uptime: '99.98%', region: 'eu-west', description: 'Service robuste' }];
+    const [item] = refract(raw, METRICS_POLICY, seed, epoch);
     res.json(item);
 });
-// --- Écarts 2 & 3 FIX : /demo/v1/users réfracté, /demo/v1/keys supprimé (surface inutile) ---
-// Guide §4 Règle 2 : aucun handler ne renvoie data brut.
-// Guide L0 §3 : pas d'API JSON publique avec surface réelle — /demo/v1/keys retournait 401
-//   mais existait comme route; la supprimer réduit la surface sans impact UX.
+
+// GET /api/demo/v1/users — réfracté
 const USERS_POLICY = {
-    id:    'actionable',  // clé technique : intouchable
-    name:  'cosmetic',   // filigranable — trace si ça fuite
-    role:  'actionable', // donnée contractuelle (admin/dev) : jamais altérée
-    email: 'cosmetic',   // filigranable par session
+    id:    'actionable',
+    name:  'cosmetic',
+    role:  'actionable',
+    email: 'cosmetic',
 };
 const USERS_DATASET = [
     { id: 1, name: 'Jean Dupont',   role: 'admin',     email: 'j.dupont@nexapi.io' },
@@ -132,23 +142,21 @@ const USERS_DATASET = [
     { id: 3, name: 'Alex Torres',   role: 'analyst',   email: 'a.torres@nexapi.io' },
 ];
 router.get('/demo/v1/users', async (req, res) => {
-    const suspicion   = getSuspicion(req, visitors);
-    const sessionSeed = getSessionSeed(req, visitors);
-    await delay(frictionMs(suspicion));
-    // Règle 2 : toujours refract() — jamais data brut
-    const data = refract(USERS_DATASET, USERS_POLICY, sessionSeed, currentEpoch());
-    const trappedData = honeypot.injectHoneypot(data, sessionSeed);
-    
-    res.json({ data: trappedData, meta: { total: data.length } });
+    const seed  = getSessionSeed(req);
+    const epoch = currentEpoch();
+    const data  = refract(USERS_DATASET, USERS_POLICY, seed, epoch);
+    const reality = req.visitor?.prisme?.reality || 'normal';
+    const payload = (reality === 'decoy' || reality === 'watermarked')
+        ? honeypot.injectHoneypot(data, seed)
+        : data;
+    res.json({ data: payload, meta: { total: data.length } });
 });
-// /demo/v1/keys supprimé — était une route 401 vide qui ajoutait de la surface sans valeur
 
-
-// --- Admin dashboard data (token requis) ---
-router.get('/admin/stats',      adminController.getStats);
-router.get('/admin/visitors',   trackingController.getVisitors);
-router.get('/admin/visitor/:id',trackingController.getVisitorById);
-router.get('/admin/logs',       trackingController.getLogs);
-router.post('/admin/telegram',  telegramController.sendReport);
+// ─── Admin dashboard ──────────────────────────────────────────────────────────
+router.get('/admin/stats',        adminController.getStats);
+router.get('/admin/visitors',     trackingController.getVisitors);
+router.get('/admin/visitor/:id',  trackingController.getVisitorById);
+router.get('/admin/logs',         trackingController.getLogs);
+router.post('/admin/telegram',    telegramController.sendReport);
 
 module.exports = router;

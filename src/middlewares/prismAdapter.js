@@ -1,67 +1,32 @@
-const L7_session = require('../layers/L7_session');
-const { toSuspicion } = require('../../prism-sdk/src/server/suspicion');
+/**
+ * prismAdapter.js
+ * Pont entre le pipeline Prisme Causal (req.visitor) et les helpers de voie/suspicion.
+ * Source de vérité unique : req.visitor — aucun ancien token lu ici.
+ */
 
-// ─── Routeur de voies (Lanes) ─────────────────────────────────────────────────
-// 'rich'       : SPA complète, rendu réel, filigrane léger
-// 'accessible' : HTML sémantique, sans JS obligatoire, filigrane + poison complets
+const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
+
 const chooseLane = (canRender) => (canRender ? 'rich' : 'accessible');
 
-// ─── Helper de délai réseau ───────────────────────────────────────────────────
 const delay = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
-// Extrait la suspicion d'une requête — ordre de priorité :
-//   1. req.prismaForced (IP bannie ou bot déclaratif)
-//   2. JWT cookie human_auth_token
-//   3. Store RAM visitors.js
-//   4. 0.5 — valeur neutre
-const getSuspicion = (req, visitors) => {
-    // Priorité 1 : suspicion forcée
-    if (req.prismaForced) return req.prismaForced.suspicion || 1.0;
-
-    // Priorité 2 : JWT cookie
-    const tokenResult = L7_session.verifyToken(req.cookies && req.cookies['human_auth_token']);
-    if (tokenResult.valid && typeof tokenResult.data.suspicion === 'number') {
-        return tokenResult.data.suspicion;
-    }
-
-    // Priorité 3 : store RAM
-    const sessionId = req.cookies && req.cookies['_nx_session'];
-    if (sessionId && visitors) {
-        const v = visitors.getVisitor(sessionId);
-        if (v && v.score !== undefined) return toSuspicion(v.score);
-    }
-
-    // Priorité 4 : neutre
+// Suspicion depuis la session Prisme Causal — calculée par causalOrchestrator
+const getSuspicion = (req) => {
+    if (typeof req.visitor?.suspicion === 'number') return req.visitor.suspicion;
     return 0.5;
 };
 
-// Extrait le sessionSeed — même ordre de priorité
-const getSessionSeed = (req, visitors) => {
-    if (req.prismaForced) return 'forced-' + (req.ip || 'unknown');
-
-    const tokenResult = L7_session.verifyToken(req.cookies && req.cookies['human_auth_token']);
-    if (tokenResult.valid && typeof tokenResult.data.sessionSeed === 'string') {
-        return tokenResult.data.sessionSeed;
-    }
-
-    const sessionId = req.cookies && req.cookies['_nx_session'];
-    if (sessionId && visitors) {
-        const v = visitors.getVisitor(sessionId);
-        if (v && v.sessionSeed) return v.sessionSeed;
-    }
-
-    return 'anonymous-' + (req.ip || 'unknown');
+// Seed interne de session — opaque, jamais exposé tel quel au client
+const getSessionSeed = (req) => {
+    if (req.visitor?.internalSeed) return req.visitor.internalSeed;
+    return 'anon-' + (req.ip || 'unknown');
 };
 
 const getLane = (req) => {
-    if (req.prismaForced && req.prismaForced.lane) return req.prismaForced.lane;
+    const reality = req.visitor?.prisme?.reality;
+    if (reality === 'blocked')  return 'blocked';
+    if (reality === 'decoy')    return 'accessible';
     return chooseLane(true);
 };
 
-module.exports = {
-    chooseLane,
-    delay,
-    getSuspicion,
-    getSessionSeed,
-    getLane
-};
+module.exports = { chooseLane, delay, getSuspicion, getSessionSeed, getLane, frictionMs };
