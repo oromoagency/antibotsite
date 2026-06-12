@@ -5,8 +5,9 @@
 // (2) n'arrête pas les bots, qui font tourner leurs proxys résidentiels.
 // → On bannit donc temporairement, avec une durée qui s'allonge à chaque récidive.
 
-const bans = new Map();    // ip -> timestamp d'expiration (ms)
-const strikes = new Map(); // ip -> { count, ts } (ts = dernière infraction)
+const bans     = new Map(); // ip -> timestamp d'expiration (ms)
+const strikes  = new Map(); // ip -> { count, ts }
+const suspects = new Map(); // ip -> timestamp d'expiration (ms) — BLOQUÉ mais pas banni
 
 // TTL par récidive : 5 min, puis 30 min, puis 2 h (plafond).
 const STRIKE_TTL = [5 * 60 * 1000, 30 * 60 * 1000, 2 * 60 * 60 * 1000];
@@ -47,8 +48,26 @@ const recordStrike = (ip) => {
     return { strikes: n, ttl };
 };
 
+// Marque une IP comme suspecte après un BLOCAGE simple (sans ban).
+// TTL court : 30 min. Une IP bloquée qui réessaie immédiatement reçoit
+// -30 supplémentaires en L2, ce qui force généralement le seuil de ban.
+const SUSPECT_TTL = 30 * 60 * 1000;
+const recordSuspect = (ip) => {
+    if (isLoopback(ip)) return;
+    suspects.set(ip, Date.now() + SUSPECT_TTL);
+    console.log(`[REPUTATION] IP suspecte (blocage récent) : ${ip} — pénalité L2 pendant 30 min`);
+};
+
+const isSuspect = (ip) => {
+    const exp = suspects.get(ip);
+    if (!exp) return false;
+    if (Date.now() > exp) { suspects.delete(ip); return false; }
+    return true;
+};
+
 const getReputation = (ip) => ({
     banned: isBanned(ip),
+    suspect: isSuspect(ip),
     strikes: (strikes.get(ip) || {}).count || 0,
 });
 
@@ -67,4 +86,4 @@ const recordAttempt = (key) => {
     return list.length; // nombre de tentatives dans la fenêtre, celle-ci incluse
 };
 
-module.exports = { isBanned, recordStrike, getReputation, recordAttempt, STRIKE_TTL, ATTEMPT_WINDOW_MS };
+module.exports = { isBanned, recordStrike, isSuspect, recordSuspect, getReputation, recordAttempt, STRIKE_TTL, SUSPECT_TTL, ATTEMPT_WINDOW_MS };

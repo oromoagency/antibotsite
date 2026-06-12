@@ -44,6 +44,9 @@ const getWhitelist = () => ({
 
 const { L2: _T } = require('../config/tuning');
 const DATACENTER_PENALTY = _T.datacenter;
+const SUSPECT_IP_PENALTY = _T.suspectIp;
+const ASN_PENALTY        = _T.asnBlacklist;
+const ASN_BLACKLIST      = new Set(_T.blacklistedAsns);
 
 // Plages CIDR datacenter représentatives. Sous-ensemble volontairement court :
 // en production, charger les listes publiées (AWS ip-ranges.json, GCP, Azure...).
@@ -141,16 +144,30 @@ const VELOCITY_TIERS_IP = [
     { count: 30, penalty: -30, label: 'cadence très élevée (IP)' },
 ];
 
-// Signal de score pour l'orchestrateur : provenance datacenter + vélocité.
-// On applique la PIRE des deux vélocités (fine vs grossière). `fingerprint` est
-// optionnel : sans lui, seule la vélocité IP grossière est suivie.
-const analyze = ({ ip, fingerprint }) => {
+// Signal de score pour l'orchestrateur : provenance datacenter, ASN, réputation,
+// vélocité. `fingerprint` et `asn` sont optionnels.
+const analyze = ({ ip, fingerprint, asn }) => {
     let score = 0;
     const reasons = [];
 
     if (isDatacenter(ip)) {
         score += DATACENTER_PENALTY;
         reasons.push(`Trafic datacenter détecté (${ip})`);
+    }
+
+    // ASN hébergeur/infrastructure : jamais d'utilisateur résidentiel sur ces plages.
+    if (asn) {
+        const asnCode = String(asn).trim().split(' ')[0].toUpperCase();
+        if (ASN_BLACKLIST.has(asnCode)) {
+            score += ASN_PENALTY;
+            reasons.push(`ASN hébergeur/infrastructure (${asnCode}) — non résidentiel`);
+        }
+    }
+
+    // IP marquée suspecte (bloquée dans les 30 dernières minutes sans ban).
+    if (reputation.isSuspect(ip)) {
+        score += SUSPECT_IP_PENALTY;
+        reasons.push('IP suspecte — blocage récent (< 30 min)');
     }
 
     // Compteur grossier par IP (toujours actif).

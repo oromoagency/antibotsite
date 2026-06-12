@@ -96,6 +96,11 @@ exports.verifyChallenge = async (req, res) => {
         ? { ...result, reasons: (result.reasons || []).map(r => `[${label}] ${r}`) }
         : result;
 
+    // Résoudre le visiteur AVANT le pipeline pour avoir l'ASN et l'historique IP.
+    // (Le lookup est déplacé ici depuis l'aval pour que L2 puisse lire visitor.asn.)
+    const sessionId = req.cookies && req.cookies['_nx_session'];
+    let visitor = sessionId ? visitors.getVisitor(sessionId) : null;
+
     // --- L1 : signaux réseau (middleware) + TLS, FUSIONNÉS en UN SEUL témoin ---
     // (revue : L1_network et L1_tls sont deux spécialités de la MÊME couche L1 ;
     //  les passer séparément les compterait pour 2 témoins et violerait la doctrine.)
@@ -110,23 +115,38 @@ exports.verifyChallenge = async (req, res) => {
         declarative: net.declarative === true,
     }, 'L1-Réseau');
 
-    // --- L2 : Réputation IP (provenance datacenter + cadence de tentatives) ---
-    const acc = tag(L2_access.analyze({ ip, fingerprint }), 'L2-Accès');
+    // --- L2 : Réputation IP (datacenter, ASN, suspect, vélocité) ---
+    const acc = tag(L2_access.analyze({ ip, fingerprint, asn: visitor ? visitor.asn : null }), 'L2-Accès');
 
     // --- L3 : Proof of Work (déjà évalué, on le tague pour cohérence) ---
     const powTagged = tag(pow, 'L3-PoW');
 
     // --- L4 : Empreinte matérielle ---
-    const hw = tag(L4_hardware.analyze({
+    const hwRaw = L4_hardware.analyze({
         webgl: hardware && hardware.webgl,
         canvas: hardware && hardware.canvas,
         audio: hardware && hardware.audio,
         webgpu: hardware ? hardware.webgpu : undefined,
         sensorDesync, fingerprint,
-    }), 'L4-Hardware');
+    });
 
     // --- L5 : Détection d'automatisation ---
-    const auto = tag(L5_automation.analyze({ automation, vsync }), 'L5-Automation');
+    const autoRaw = L5_automation.analyze({ automation, vsync });
+
+    // --- Règle combinée Camoufox + CDP (orchestrateur, hors couches) ---
+    // Seul : Camoufox peut être un dev Firefox ; CDP peut être DevTools ouverts.
+    // Ensemble sur la MÊME session : quasi-certitude d'un bot patchant le navigateur
+    // tout en l'automatisant via CDP. Pénalité extra sur L4 pour passer sous 60.
+    const isCamoufox = (hwRaw.reasons || []).some(r => r.includes('WebGPU absent'));
+    const hasCdpTrap = (autoRaw.score || 0) <= -10;
+    if (isCamoufox && hasCdpTrap) {
+        const combo = require('../config/tuning').L2.camoufoxCdpCombo;
+        hwRaw.score = (hwRaw.score || 0) + combo;
+        hwRaw.reasons = [...(hwRaw.reasons || []), 'Camoufox + CDP confirmé — navigateur patché sous automatisation'];
+    }
+
+    const hw   = tag(hwRaw,   'L4-Hardware');
+    const auto = tag(autoRaw, 'L5-Automation');
 
     // --- L6 : Biométrie comportementale ---
     const bio = tag(L6_biometrics.analyze({ mouseTrajectory, keystrokes }), 'L6-Biométrie');
@@ -150,10 +170,8 @@ exports.verifyChallenge = async (req, res) => {
     logLayer('L5-Automation', auto);
     logLayer('L6-Biométrie',  bio);
 
-    // --- Mise à jour de la session visiteur (s'il en a une) et envoi Telegram ---
-    const sessionId = req.cookies && req.cookies['_nx_session'];
-    let visitor = sessionId ? visitors.getVisitor(sessionId) : null;
-
+    // --- Mise à jour de la session visiteur et envoi Telegram ---
+    // (visitor et sessionId sont déjà résolus en début de pipeline)
     // S'il n'a pas de session (bot pur qui bloque les cookies), on lui crée une fiche temporaire pour Telegram
     if (!visitor) {
         visitor = visitors.createVisitor({ ip, userAgent: req.headers['user-agent'] || 'unknown' });
@@ -185,7 +203,11 @@ exports.verifyChallenge = async (req, res) => {
             reputation.recordStrike(ip);
             console.log(`[ACCESS_DENIED] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike. IP: ${ip}`);
         } else {
-            console.log(`[ACCESS_DENIED] Refus sans ban (score ${v.score}, corroboration insuffisante). IP: ${ip}`);
+            // BLOCK sans BAN : marquer l'IP comme suspecte 30 min.
+            // Une 2e tentative depuis la même IP recevra -30 en L2, ce qui
+            // combiné aux signaux déjà présents force généralement le ban.
+            reputation.recordSuspect(ip);
+            console.log(`[ACCESS_DENIED] Refus sans ban (score ${v.score}) — IP marquée suspecte. IP: ${ip}`);
         }
         recordOutcome(ip, v.ban ? 'ban' : 'block', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
         return res.status(403).json({ success: false, message: 'Vérification échouée.' });

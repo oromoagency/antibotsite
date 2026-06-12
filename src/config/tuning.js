@@ -26,6 +26,38 @@ module.exports = {
         // Volontairement faible (-15) : Cloudflare WARP, iCloud Relay et entreprises
         // font sortir des humains par des IP datacenter. Seul, ne bloque jamais.
         datacenter:   -15,
+
+        // IP marquée suspect — déjà bloquée dans les 30 dernières minutes.
+        // Ne concerne PAS les IPs bannies (traitées en dur par le middleware).
+        suspectIp:    -30,
+
+        // ASN hébergeur/infrastructure exclusif — aucun utilisateur résidentiel
+        // ne vient de DigitalOcean ou Hetzner. Signal plus fort que le CIDR seul.
+        asnBlacklist: -25,
+
+        // ASNs exclusivement utilisés par des hébergeurs / bots (jamais résidentiel).
+        // Format : 'AS' + numéro, correspondant au champ `as` retourné par ip-api.com.
+        // NB : AS13335 (Cloudflare) déjà couvert par les CIDRs 172.64/13 et 104.16/12.
+        blacklistedAsns: [
+            'AS14061',  // DigitalOcean, LLC
+            'AS16276',  // OVH SAS
+            'AS24940',  // Hetzner Online GmbH
+            'AS20473',  // AS-CHOOPA (Vultr)
+            'AS63949',  // Linode / Akamai Connected Cloud
+            'AS9009',   // M247 Europe SRL
+            'AS8100',   // QuadraNet Enterprises
+            'AS15169',  // Google Cloud (GCP)
+            'AS396982', // Google Cloud 2
+            'AS14618',  // Amazon AWS
+            'AS16509',  // Amazon Data Services (EC2)
+            'AS8075',   // Microsoft Azure
+            'AS32934',  // Meta / Facebook (infrastructure bots)
+        ],
+
+        // Pénalité extra quand Camoufox (L4) ET piège CDP (L5) sont détectés ensemble.
+        // Seul, Camoufox peut être un build Firefox patchée par un dev ; seul, un piège
+        // CDP peut venir de Chrome avec DevTools ouverts. Ensemble : quasi-certitude bot.
+        camoufoxCdpCombo: -20,
     },
 
     // ── L4 · Empreinte matérielle ──────────────────────────────────────────────
