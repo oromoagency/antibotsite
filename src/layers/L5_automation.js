@@ -21,8 +21,8 @@ const WEIGHTS = {
     webdriverNative: -100,   // navigator.webdriver === true (Selenium/Playwright non furtif)
     stealthArtifacts: -80,   // $cdc_, $wdc_ : n'existent QUE sous ChromeDriver
     webdriverPatched: -60,   // accesseur webdriver réécrit (furtivité active)
-    cdpProxyTrap: -45,        // piège Proxy (sérialisation CDP active) — signal bot fort
-    cdpStackTrap: -15,        // piège Error.stack — neutralisable par rebrowser-patches, donc léger
+    cdpProxyTrap: -10,        // piège Proxy (faux-positifs possibles sur Chrome Mobile)
+    cdpStackTrap: -10,        // piège Error.stack
     // Firefox geckodriver / Marionette (rapport 2026 : Camoufox contourne les pièges
     // Chromium/CDP mais ne peut pas retirer l'attribut webdriver posé par geckodriver
     // sur l'élément <html> — distinct de navigator.webdriver qui lui est patchable).

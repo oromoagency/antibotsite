@@ -13,7 +13,16 @@ const webRoutes = require('./routes/web');
 
 const app = express();
 
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
+
+// Middleware Cloudflare : utiliser CF-Connecting-IP comme IP source de vérité
+app.use((req, res, next) => {
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (cfIp) {
+        Object.defineProperty(req, 'ip', { get: () => cfIp });
+    }
+    next();
+});
 
 app.use(helmet({
     contentSecurityPolicy: {
