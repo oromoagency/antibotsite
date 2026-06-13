@@ -98,11 +98,11 @@ const RULES = [
     {
         id: 'request_velocity_spike',
         evaluate: (session) => {
-            if (session.counters.requests > 120 || session.counters.sensitiveApiCalls > 40) {
+            if (session.counters.requests > 20 || session.counters.sensitiveApiCalls > 10) {
                 return createContradiction(
                     'request_velocity_spike',
                     'Request velocity exceeds human threshold',
-                    session.counters.sensitiveApiCalls > 40 ? 'high' : 'medium',
+                    session.counters.sensitiveApiCalls > 10 ? 'high' : 'medium',
                     ['network', 'timing'], 'velocity', []
                 );
             }

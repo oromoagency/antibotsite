@@ -78,11 +78,23 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false,
 }));
 
+// Rate-limit global : 60 req/min par IP.
+// Couvre le dashboard admin (~10/min) + résolution PoW (~5 req) + navigation normale.
+// Les rafales de bots (8+ req/s) déclenchent le 429 avant d'atteindre la gateway.
 app.use(rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 500, // ~33 req/min par IP — couvre le dashboard admin (12/min) + usage normal
-    message: "Too many requests.",
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'rate_limit_exceeded', retryAfter: 60 },
 }));
+
+// X-Robots-Tag sur toutes les réponses : bloquer les crawlers de moteurs
+// qui respectent les headers (Google, Bing, etc.) sans avoir besoin de robots.txt.
+app.use((req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+    next();
+});
 
 app.use(express.json({ limit: '128kb' }));
 app.use(cookieParser());

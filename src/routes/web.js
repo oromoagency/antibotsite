@@ -5,6 +5,10 @@ const L7_session    = require('../layers/L7_session');
 const L2_access     = require('../layers/L2_access');
 const visitorTracker = require('../middlewares/visitorTracker');
 
+// UAs qui se déclarent crawler sans vérification rDNS — Zero Bot : 403 immédiat.
+// Ces patterns ne bloquent jamais un humain normal (aucun vrai browser ne les envoie).
+const DECLARED_BOT_UA = /googlebot|bingbot|yandexbot|baiduspider|duckduckbot|slurp|gptbot|ccbot|anthropic-ai|perplexitybot|bytespider|ahrefsbot|semrushbot|dotbot|rogerbot|exabot|mj12bot/i;
+
 const VIEWS_ROOT = path.join(__dirname, '../views');
 
 // Middleware de tracking (s'applique à tous, y compris les bots sur la gateway)
@@ -20,6 +24,14 @@ router.use(visitorTracker);
 const requireHuman = (req, res, next) => {
     // Exclure le dashboard admin du test PoW
     if (req.path.startsWith('/admin')) return next();
+
+    // Crawlers déclaratifs : 403 immédiat (Zero Bot Mode).
+    // Ils ne peuvent pas passer le PoW — inutile de leur servir la gateway.
+    // Un dev qui teste avec curl ne sera pas bloqué ici (curl n'est pas dans DECLARED_BOT_UA).
+    const ua = req.headers['user-agent'] || '';
+    if (DECLARED_BOT_UA.test(ua)) {
+        return res.status(403).json({ error: 'bot_access_restricted' });
+    }
 
     // ZÉRO CONFIANCE ABSOLUE : La "Voie Accessible" a été retirée à la demande de l'administrateur.
     // Un bot qui se déclare honnête (Googlebot, curl, etc.) ne reçoit plus aucun traitement de faveur.

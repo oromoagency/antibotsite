@@ -9,7 +9,8 @@
 const crypto = require('crypto');
 const config = require('../config');
 const posture = require('../policy/posture');
-const events = require('../store/events');
+const events  = require('../store/events');
+const { getBlacklistStats } = require('../../prism-sdk/src/server/honeypot');
 
 const tokenValid = (supplied) => {
     if (typeof supplied !== 'string' || supplied.length === 0) return false;
@@ -26,10 +27,11 @@ exports.getStats = (req, res) => {
     posture.evaluate();
 
     res.json({
-        posture: posture.currentLevel(),
-        difficulty: posture.currentDifficulty(),
-        window5min: events.statsWindow(5 * 60 * 1000),
-        lastHour: events.statsWindow(60 * 60 * 1000),
-        eventsStored: events.size(),
+        posture:       posture.currentLevel(),
+        difficulty:    posture.currentDifficulty(),
+        window5min:    events.statsWindow(5 * 60 * 1000),
+        lastHour:      events.statsWindow(60 * 60 * 1000),
+        eventsStored:  events.size(),
+        honeypot:      getBlacklistStats(),
     });
 };

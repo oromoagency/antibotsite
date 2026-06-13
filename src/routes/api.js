@@ -7,6 +7,7 @@ const adminController      = require('../controllers/adminController');
 const trackingController   = require('../controllers/trackingController');
 const telegramController   = require('../controllers/telegramController');
 const L7_session           = require('../layers/L7_session');
+const antibotEntry         = require('../antibot/middleware/antibotEntry');
 const { refract, currentEpoch } = require('../../prism-sdk/src/server/refractor');
 const { getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
 const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
@@ -37,8 +38,16 @@ router.get('/noscript-entry', (req, res) => {
 // ─── Honeypot invisible ───────────────────────────────────────────────────────
 router.use('/__internal/v2/stats', honeypot.honeypotTrapMiddleware);
 
+// ─── Attacher la session causal à req.visitor (Zero Bot pipeline) ─────────────
+// Positionné ICI (après les routes publiques) pour que challenge-config et
+// verify-challenge ne soient pas ralentis par la création de session inutile.
+router.use(antibotEntry);
+
 // ─── Gate API : session humaine validée requise ───────────────────────────────
-// Exception : token admin valide passe directement
+// Deux chemins valides :
+//   1. human_auth_token JWT valide (posé par verify-challenge après PoW réussi)
+//   2. req.visitor.humanValidated (session causal si pipeline actif)
+// Exception : token admin valide passe directement.
 const requireHumanApi = (req, res, next) => {
     // Admin bypass — vérifie x-admin-token avant tout
     const adminToken = req.headers['x-admin-token'];
@@ -46,10 +55,14 @@ const requireHumanApi = (req, res, next) => {
         return next();
     }
 
-    if (!req.visitor?.humanValidated) {
-        return res.status(401).json({ error: 'human_session_required' });
-    }
-    next();
+    // Chemin 1 : JWT L7 posé par verifyChallenge (flux principal)
+    const jwtResult = L7_session.verifyToken(req.cookies['human_auth_token']);
+    if (jwtResult.valid) return next();
+
+    // Chemin 2 : session causal (fallback si antibotEntry a chargé la session)
+    if (req.visitor?.humanValidated) return next();
+
+    return res.status(401).json({ error: 'human_session_required' });
 };
 
 router.use(requireHumanApi);

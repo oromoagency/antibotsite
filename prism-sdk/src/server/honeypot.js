@@ -1,44 +1,63 @@
 const crypto = require('crypto');
+const fs   = require('fs');
+const path = require('path');
 
-// Map to store blacklisted seeds in memory (use Redis in prod)
+// Persistance sur disque — survit aux redémarrages de process dans la même instance Render.
+// En production multi-instance : remplacer par Redis (TTL 30j).
+const BLACKLIST_PATH = path.join(__dirname, '../../../data/honeypot-blacklist.json');
+
 const blacklistedSeeds = new Set();
+const blacklistedIps   = new Set();
 
-/**
- * Generates a deterministic ghost field value based on the seed
- */
+// Charge la blacklist depuis le disque au démarrage du process
+;(function loadBlacklist() {
+    try {
+        if (fs.existsSync(BLACKLIST_PATH)) {
+            const raw = JSON.parse(fs.readFileSync(BLACKLIST_PATH, 'utf8'));
+            (raw.seeds || []).forEach(s => blacklistedSeeds.add(s));
+            (raw.ips   || []).forEach(ip => blacklistedIps.add(ip));
+            console.log(`[HONEYPOT] Blacklist chargée : ${blacklistedSeeds.size} seeds, ${blacklistedIps.size} IPs`);
+        }
+    } catch (_) {}
+})();
+
+function saveBlacklist() {
+    try {
+        fs.mkdirSync(path.dirname(BLACKLIST_PATH), { recursive: true });
+        fs.writeFileSync(BLACKLIST_PATH, JSON.stringify({
+            updatedAt: new Date().toISOString(),
+            seeds: [...blacklistedSeeds],
+            ips:   [...blacklistedIps],
+        }, null, 2));
+    } catch (e) {
+        console.error('[HONEYPOT] Erreur d\'écriture blacklist:', e.message);
+    }
+}
+
 function generateHoneypotField(seed) {
     return crypto.createHash('md5').update(seed + '_ghost').digest('hex').slice(0, 10);
 }
 
 /**
- * Injects honeypot fields and trap URLs into a JSON response payload.
- * These fields should NEVER be rendered by the UI.
- * 
- * @param {Object|Array} data - The original refracted data
- * @param {string} seed - The session seed
- * @returns {Object|Array} The trapped data
+ * Injecte des champs pièges et des URLs fantômes dans une réponse JSON.
+ * Ces champs ne doivent JAMAIS être rendus par le vrai UI.
  */
 function injectHoneypot(data, seed) {
     if (!data) return data;
-    
-    // Si c'est un tableau, on ajoute l'endpoint fantôme à la racine 
-    // et un champ fantôme dans le premier élément (si dispo)
+
     if (Array.isArray(data)) {
         const trapped = [...data];
         if (trapped.length > 0 && typeof trapped[0] === 'object') {
             trapped[0] = { ...trapped[0], __ghost_rank: generateHoneypotField(seed) };
         }
-        // Attaching to the array object itself (might be lost in JSON stringify depending on context,
-        // so we often wrap it in an object like { data: trapped, __trap_api: ... })
         return trapped;
     }
 
-    // Si c'est un objet
     if (typeof data === 'object') {
         return {
             ...data,
             __ghost_rank: generateHoneypotField(seed),
-            __trap_api: `/api/__internal/v2/stats/item-${crypto.createHash('md5').update(seed).digest('hex').slice(0,6)}`
+            __trap_api: `/api/__internal/v2/stats/item-${crypto.createHash('md5').update(seed).digest('hex').slice(0, 6)}`,
         };
     }
 
@@ -46,35 +65,47 @@ function injectHoneypot(data, seed) {
 }
 
 /**
- * Express Middleware to handle trap URL hits.
- * If a bot calls this route, their seed is instantly blacklisted.
+ * Middleware piège : répond avec du bait, blackliste le visiteur.
+ * Ne retourne JAMAIS 403 — le bot doit croire qu'il a réussi.
  */
 function honeypotTrapMiddleware(req, res) {
-    // Supposons que le seed est dans les cookies
-    const seed = req.cookies?.prism_seed || req.headers['x-prism-seed'];
-    
-    if (seed) {
-        console.warn(`[PRISM HONEYPOT] Bot detected! Seed ${seed} triggered the trap.`);
-        blacklistedSeeds.add(seed);
-    }
+    const ip  = req.ip || req.socket?.remoteAddress || 'unknown';
+    // Identifie la session via le cookie de tracking principal
+    const sid = req.cookies?._nx_session || req.cookies?.nx_sess || req.headers['x-prism-seed'];
 
-    // NEVER return 403. Return a fake success to keep the bot happy but poisoned.
-    res.status(200).json({ 
-        success: true, 
-        views: Math.floor(Math.random() * 1000),
-        status: "synced"
+    if (sid) {
+        blacklistedSeeds.add(sid);
+        console.warn(`[HONEYPOT] Piège déclenché — session: ${sid.slice(0, 12)}… IP: ${ip}`);
+    }
+    // Toujours logger l'IP même sans session identifiée
+    blacklistedIps.add(ip);
+    console.warn(`[HONEYPOT] Piège déclenché — IP: ${ip} UA: ${(req.headers['user-agent'] || '').slice(0, 60)}`);
+
+    // Persistance asynchrone (ne pas bloquer la réponse)
+    setImmediate(saveBlacklist);
+
+    // Données leurres — aléatoires à chaque appel pour brouiller le scraper
+    res.status(200).json({
+        success: true,
+        views:   Math.floor(Math.random() * 1000),
+        status:  'synced',
     });
 }
 
 /**
- * Check if a seed is blacklisted.
+ * Vérifie si une session ou IP est blacklistée (à utiliser dans requireHumanApi si nécessaire).
  */
-function isBlacklisted(seed) {
-    return blacklistedSeeds.has(seed);
+function isBlacklisted(seedOrIp) {
+    return blacklistedSeeds.has(seedOrIp) || blacklistedIps.has(seedOrIp);
+}
+
+function getBlacklistStats() {
+    return { seeds: blacklistedSeeds.size, ips: blacklistedIps.size };
 }
 
 module.exports = {
     injectHoneypot,
     honeypotTrapMiddleware,
-    isBlacklisted
+    isBlacklisted,
+    getBlacklistStats,
 };
