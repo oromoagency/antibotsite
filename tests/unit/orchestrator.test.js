@@ -43,9 +43,21 @@ describe('Règle Zero Bot Mode', () => {
         assert.equal(r, 'blocked');
     });
 
-    test('contradiction haute → blocked en ZBM', () => {
+    // Doctrine révisée : 1 seul groupe HIGH → watermarked (protection anti-FP biométrie seule).
+    // Exemple : biometric_anomaly sans corroboration hardware/automation = humain immobile.
+    test('1 seul groupe HIGH → watermarked (pas blocked) en ZBM', () => {
         const s = makeSession({ humanValidated: false });
-        s.coherence.contradictions.push({ severity: 'high' });
+        s.coherence.contradictions.push({ severity: 'high', independentGroup: 'human_interaction' });
+        const r = decideReality(s);
+        assert.equal(r, 'watermarked');
+    });
+
+    // Corroboration obligatoire : ≥2 groupes HIGH indépendants → blocked.
+    // Exemple : hardware_anomaly (GPU) + biometric_anomaly (souris) = deux domaines distincts.
+    test('≥2 groupes HIGH indépendants → blocked en ZBM', () => {
+        const s = makeSession({ humanValidated: false });
+        s.coherence.contradictions.push({ severity: 'high', independentGroup: 'hardware_consistency' });
+        s.coherence.contradictions.push({ severity: 'high', independentGroup: 'human_interaction' });
         const r = decideReality(s);
         assert.equal(r, 'blocked');
     });
