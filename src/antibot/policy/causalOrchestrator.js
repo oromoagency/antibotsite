@@ -42,8 +42,18 @@ function decideReality(session) {
     // Contradiction critique hors zero-bot → Prisme strict (decoy)
     if (hasCritical) return 'decoy';
 
-    // Contradictions fortes → blocage (zero-bot) ou Prisme dégradé
-    if (hasHigh)   return zeroBotMode ? 'blocked' : 'decoy';
+    // Contradictions fortes — doctrine : corroboration inter-groupes obligatoire.
+    // Un seul groupe HIGH (ex: biometric_anomaly seule après PoW court, sans aucun
+    // signal hardware/automation) ne suffit pas à bloquer — PoW prouve la capacité JS.
+    // ≥2 groupes indépendants HIGH → blocage confirmé.
+    if (hasHigh) {
+        const highGroups = new Set(
+            contradictions.filter(c => c.severity === 'high').map(c => c.independentGroup)
+        );
+        if (highGroups.size >= 2) return zeroBotMode ? 'blocked' : 'decoy';
+        // Un seul groupe → watermark (token accordé, données empoisonnées, traçable)
+        return zeroBotMode ? 'watermarked' : 'observed';
+    }
 
     // Contradictions moyennes → watermark
     if (hasMedium) return zeroBotMode ? 'watermarked' : 'observed';
