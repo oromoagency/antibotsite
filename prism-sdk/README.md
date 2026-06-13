@@ -184,12 +184,13 @@ Le "Causal Orchestrator" de Prisme ne prend jamais de décision sur un seul sign
 
 ---
 
-## 💎 Le Moteur de Réfraction
+## 💎 Le Moteur de Réfraction & L'Univers Genèse
 
-Au lieu de renvoyer une erreur 403, Prisme renvoie des données réfractées.
+Au lieu de renvoyer une erreur 403, Prisme renvoie des données réfractées. C'est ce que nous appelons **L'Univers Genèse** : un univers parallèle de fausses données généré spécifiquement pour les bots.
 
-- **Watermarking** : Prisme modifie légèrement un texte (synonymes invisibles) en le liant au `SessionSeed` du visiteur. Si un concurrent publie votre base de données en ligne, Prisme peut vous prouver mathématiquement de quelle session exacte provient la fuite.
-- **Jitter** : Ajoute du bruit gaussien aux variables numériques (Prix, Statistiques). Le bot qui tente de moyenner la donnée corrompt l'intégralité de sa base.
+- **Faux Visuel (Data Poisoning)** : Le bot capture l'écran ou lit le DOM, mais le prix ou les données affichées sont mathématiquement faux. Il redistribue une erreur à ses clients, perdant ainsi toute fiabilité.
+- **Dégradation Temporelle (Epoch Mutation)** : L'algorithme de Réfraction (`refractor.js`) est basé sur une notion d'**Epoch** (par défaut, une rotation hebdomadaire). Une donnée aspirée ou capturée aujourd'hui sera invalidée et modifiée demain. Le scraper ne peut jamais moyenner ou stabiliser les données volées.
+- **Watermarking (Traçabilité)** : Prisme modifie légèrement un texte (synonymes invisibles) en le liant au `SessionSeed` du visiteur. Si un concurrent publie votre base de données en ligne, Prisme peut vous prouver mathématiquement de quelle session exacte provient la fuite.
 - **Leurre (Decoy)** : Si le bot est confondu par le Honeypot, Prisme ne répond plus la vraie donnée mais génère un JSON totalement fictif mais structurellement valide.
 
 ---

@@ -231,7 +231,18 @@ exports.verifyChallenge = async (req, res) => {
             'L5-Automation': auto?.score      ?? 0,
             'L6-Biométrie':  bio?.score       ?? 0,
         },
+        // Synchronisation immédiate des données matérielles pour les rapports Telegram / Dashboard
+        webglRenderer: hardware?.webgl?.renderer || undefined,
+        screen: screenProfile ? `${screenProfile.viewportW || fingerprint.screenResolution || ''}` : undefined,
+        hardwareConcurrency: hardware?.hardwareConcurrency,
+        deviceMemory: hardware?.deviceMemory,
     });
+    
+    // Si l'utilisateur a modifié le code pour envoyer une notification Telegram sur les "Allowed"
+    const finalVisitor = visitors.getVisitor(visitor.id);
+    if (finalVisitor.decision === 'allowed') {
+        telegram.notifySuspect(finalVisitor).catch(() => {});
+    }
 
     const v = { allowed: reality === 'normal', suspicion: prismeSession.suspicion, score: Math.round((1.0 - prismeSession.suspicion) * 100) };
 
