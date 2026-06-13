@@ -104,22 +104,48 @@ function watermark(value, sessionSeed, key) {
 
 // ─── POISON — par item+époque (déterministe, résistant à la moyenne) ──────────
 // Le même offset est vu par TOUTES les sessions → la moyenne inter-sessions ne l'annule pas.
-// Décalage structurel : [-3, +3] sans bruit aléatoire.
+//
+// Amplitude PROPORTIONNELLE à la grandeur (~2 %), et non un décalage absolu fixe :
+//   - un compteur à 2 048 341 décalé de ±3 = bruit invisible (l'ancien comportement
+//     ne faussait RIEN sur les grands agrégats) ;
+//   - un taux 0.02 décalé de ±3 = absurde (l'ancien `Math.round` le transformait même
+//     en entier → 0.02 devenait 1). Les flottants sont désormais traités sans arrondi.
+//
+// `factor` (piloté par la réalité) intensifie le poison : 1 en watermarked/normal,
+// agressif en decoy (session hostile confirmée → on lui sert des agrégats très faux).
 const clampPlausible = (v, min = 1) => Math.max(min, Math.round(v));
 
-function poison(value, itemKey, epoch) {
-    if (typeof value !== 'number') return value;
-    const ep     = epoch || currentEpoch();
-    const shift  = (hashInt(String(itemKey) + ep) % 7) - 3;  // [-3, +3]
+function poison(value, itemKey, epoch, factor = 1) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+    const ep  = epoch || currentEpoch();
+    const h   = hashInt(String(itemKey) + ep);
+    const mag = Math.abs(value);
+    const f   = Math.max(1, factor);
+
+    if (!Number.isInteger(value)) {
+        // Flottant : décalage relatif (~2 % × factor), jamais d'arrondi à l'entier.
+        const span = mag * 0.02 * f;
+        if (span === 0) return value;                     // 0.0 reste 0.0
+        const steps = 50;
+        const shift = ((h % (2 * steps + 1)) - steps) * (span / steps); // [-span, +span]
+        return Math.max(0.01, parseFloat((value + shift).toFixed(4)));
+    }
+
+    // Entier : amplitude ≥ 1 (un compteur doit bouger), sinon ~2 % × factor.
+    const span  = Math.max(1, Math.round(mag * 0.02 * f));
+    const shift = (h % (2 * span + 1)) - span;            // [-span, +span]
     return clampPlausible(value + shift);
 }
 
 // ─── REFRACT — point d'étranglement unique ────────────────────────────────────
-function refract(rows, policy, sessionSeed, epoch) {
+// opts.poisonFactor : intensité du poison agrégat (1 par défaut). Dérivé de la réalité
+// par l'appelant — ex. decoy → facteur élevé pour servir des agrégats très faux.
+function refract(rows, policy, sessionSeed, epoch, opts = {}) {
     if (!rows) return [];
     if (!Array.isArray(rows)) rows = [rows];
-    const ep   = epoch || currentEpoch();
-    const seed = sessionSeed || 'anonymous';
+    const ep     = epoch || currentEpoch();
+    const seed   = sessionSeed || 'anonymous';
+    const factor = (opts && typeof opts.poisonFactor === 'number') ? opts.poisonFactor : 1;
 
     return rows.map((row) => {
         const out = {};
@@ -133,7 +159,7 @@ function refract(rows, policy, sessionSeed, epoch) {
                     out[key] = watermark(value, seed, key);
                     break;
                 case 'aggregate':
-                    out[key] = poison(value, `${row.id || key}:${key}`, ep);
+                    out[key] = poison(value, `${row.id || key}:${key}`, ep, factor);
                     break;
                 default:
                     out[key] = value;

@@ -83,6 +83,57 @@ describe('Poison résistant à la moyenne', () => {
     });
 });
 
+describe('Poison proportionnel & sûr pour les flottants', () => {
+    const epoch = '2025-W01';
+
+    test('un taux flottant reste un flottant plausible (pas d\'arrondi à l\'entier)', () => {
+        // Régression : l\'ancien poison arrondissait 0.02 → 1 (×50, absurde).
+        const out = poison(0.02, 'svc:errorRate', epoch);
+        assert.ok(!Number.isInteger(out) || out === 0, `0.02 empoisonné devrait rester fractionnaire, reçu ${out}`);
+        assert.ok(out > 0 && out < 0.1, `0.02 ± ~2% doit rester proche de 0.02, reçu ${out}`);
+    });
+
+    test('un grand agrégat subit un décalage SIGNIFICATIF (~2%), pas un bruit de ±3', () => {
+        const raw = 2048341;
+        const out = poison(raw, 'svc:requests', epoch);
+        const diff = Math.abs(out - raw);
+        assert.ok(diff > 3, `Un grand nombre doit bouger de plus que ±3, diff=${diff}`);
+        assert.ok(diff < raw * 0.05, `Le décalage doit rester plausible (<5%), diff=${diff}`);
+    });
+
+    test('déterministe par item+époque (résistant à la moyenne) même avec factor', () => {
+        const a = poison(1000, 'x:rank', epoch, 4);
+        const b = poison(1000, 'x:rank', epoch, 4);
+        assert.equal(a, b);
+    });
+
+    test('factor élevé (decoy) intensifie le poison', () => {
+        // On compare l\'amplitude maximale possible : avec factor 4, l\'enveloppe est ~4× plus large.
+        const raw = 100000;
+        let maxStd = 0, maxDecoy = 0;
+        for (let i = 0; i < 50; i++) {
+            maxStd   = Math.max(maxStd,   Math.abs(poison(raw, `item-${i}:v`, epoch, 1) - raw));
+            maxDecoy = Math.max(maxDecoy, Math.abs(poison(raw, `item-${i}:v`, epoch, 4) - raw));
+        }
+        assert.ok(maxDecoy > maxStd, `decoy (${maxDecoy}) doit dépasser standard (${maxStd})`);
+    });
+
+    test('refract propage poisonFactor aux champs aggregate (enveloppe decoy plus large)', () => {
+        const POL = { id: 'actionable', v: 'aggregate' };
+        const raw = 500000;
+        // L\'enveloppe (déviation max sur plusieurs items) doit s\'élargir avec le factor.
+        // Note : pour un item donné, le modulo n\'est pas monotone — on compare des enveloppes.
+        let maxStd = 0, maxDecoy = 0;
+        for (let i = 0; i < 40; i++) {
+            const std   = refract([{ id: `it-${i}`, v: raw }], POL, 'seed', epoch, { poisonFactor: 1 })[0].v;
+            const decoy = refract([{ id: `it-${i}`, v: raw }], POL, 'seed', epoch, { poisonFactor: 8 })[0].v;
+            maxStd   = Math.max(maxStd,   Math.abs(std - raw));
+            maxDecoy = Math.max(maxDecoy, Math.abs(decoy - raw));
+        }
+        assert.ok(maxDecoy > maxStd, `enveloppe decoy (${maxDecoy}) > standard (${maxStd})`);
+    });
+});
+
 describe('Tableau vide et valeurs nulles', () => {
     test('tableau vide → tableau vide', () => {
         const r = refract([], POLICY, 'seed', '2025-W01');

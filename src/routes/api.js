@@ -5,6 +5,11 @@ const config  = require('../config');
 const { getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
 const { refract, currentEpoch, honeypot, frictionMs } = require('../../prism-sdk');
 
+// Intensité du poison agrégat selon la réalité décidée à la gate (qui circule
+// désormais jusqu'ici). Une session 'decoy' (hostile confirmée) reçoit des
+// agrégats très faux ; les autres, le poison standard traçable.
+const poisonFactorFor = (reality) => (reality === 'decoy' ? 4 : 1);
+
 // ─── Politique de réfraction des données de démo ─────────────────────────────
 // Doctrine Prisme : je ne renvoie JAMAIS data. Je renvoie refract(data, seed).
 // Même pour un humain validé — le watermark est là pour tracer une fuite, pas bloquer.
@@ -48,7 +53,7 @@ router.get('/prism/demo', async (req, res) => {
     const epoch   = currentEpoch();
     const reality = req.visitor?.prisme?.reality || 'normal';
 
-    const data = refract(DEMO_DATASET, DEMO_POLICY, seed, epoch);
+    const data = refract(DEMO_DATASET, DEMO_POLICY, seed, epoch, { poisonFactor: poisonFactorFor(reality) });
 
     // Ajouter honeypot seulement pour les sessions suspectes
     const payload = (reality === 'decoy' || reality === 'watermarked')
@@ -73,10 +78,11 @@ const METRICS_POLICY = {
     description: 'cosmetic',
 };
 router.get('/demo/v1/metrics', async (req, res) => {
-    const seed  = getSessionSeed(req);
-    const epoch = currentEpoch();
-    const raw   = [{ id: 'metrics', requests: 2048341, latency_ms: 12, uptime: '99.98%', region: 'eu-west', description: 'Service robuste' }];
-    const [item] = refract(raw, METRICS_POLICY, seed, epoch);
+    const seed    = getSessionSeed(req);
+    const epoch   = currentEpoch();
+    const reality = req.visitor?.prisme?.reality || 'normal';
+    const raw     = [{ id: 'metrics', requests: 2048341, latency_ms: 12, uptime: '99.98%', region: 'eu-west', description: 'Service robuste' }];
+    const [item]  = refract(raw, METRICS_POLICY, seed, epoch, { poisonFactor: poisonFactorFor(reality) });
     res.json(item);
 });
 
@@ -93,10 +99,10 @@ const USERS_DATASET = [
     { id: 3, name: 'Alex Torres',   role: 'analyst',   email: 'a.torres@nexapi.io' },
 ];
 router.get('/demo/v1/users', async (req, res) => {
-    const seed  = getSessionSeed(req);
-    const epoch = currentEpoch();
-    const data  = refract(USERS_DATASET, USERS_POLICY, seed, epoch);
+    const seed    = getSessionSeed(req);
+    const epoch   = currentEpoch();
     const reality = req.visitor?.prisme?.reality || 'normal';
+    const data    = refract(USERS_DATASET, USERS_POLICY, seed, epoch, { poisonFactor: poisonFactorFor(reality) });
     const payload = (reality === 'decoy' || reality === 'watermarked')
         ? honeypot.injectHoneypot(data, seed)
         : data;
