@@ -21,19 +21,8 @@ router.post('/track/event',        trackingController.recordEvent);
 router.post('/auth/login',         trackingController.recordLoginAttempt);
 router.post('/auth/register',      trackingController.recordRegister);
 
-// Voie accessible pour humains sans JavaScript — invariant humain absolu
-router.get('/noscript-entry', (req, res) => {
-    const ip   = req.ip || 'unknown';
-    const seed = 'noscript-' + ip;
-    const token = L7_session.createToken(ip, { noscript: true }, 0, 1.0, seed);
-    res.cookie('human_auth_token', token, {
-        httpOnly: true,
-        secure:   process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge:   L7_session.SESSION_DURATION_MS,
-    });
-    res.redirect('/');
-});
+// La voie sans JS a été supprimée (Zero Bot Mode strict).
+// Un client sans JavaScript ne peut plus contourner le PoW.
 
 // ─── Honeypot invisible ───────────────────────────────────────────────────────
 router.use('/__internal/v2/stats', honeypot.honeypotTrapMiddleware);
