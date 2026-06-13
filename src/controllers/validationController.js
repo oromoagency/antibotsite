@@ -219,10 +219,9 @@ exports.verifyChallenge = async (req, res) => {
     // --- Synchronisation avec visitors.js (Dashboard Admin) ---
     visitors.updateVisitor(visitor.id, {
         score: Math.round((1.0 - prismeSession.suspicion) * 100), // Mappe la suspicion [0,1] vers un score [100,0] pour compatibilité UI
-        decision: reality === 'normal'       ? 'allowed'
-                : reality === 'blocked'      ? 'blocked'
+        decision: reality === 'blocked' ? 'blocked'
                 : reality === 'gate_required' ? 'pending'
-                : 'suspect', // watermarked, decoy, observed — token accordé mais sous surveillance
+                : 'allowed', // normal, watermarked, decoy, observed -> tous ceux qui passent sont 'allowed' dans le dashboard
         reasons: prismeSession.coherence.contradictions.map(c => `[${c.severity.toUpperCase()}] ${c.title}`),
         layerScores: {
             'L1-Réseau':     l1?.score        ?? 0,
