@@ -4,6 +4,7 @@ const router  = express.Router();
 const L7_session    = require('../layers/L7_session');
 const L2_access     = require('../layers/L2_access');
 const visitorTracker = require('../middlewares/visitorTracker');
+const visitors       = require('../store/visitors');
 
 // UAs déclaratifs — jamais envoyés par un vrai navigateur humain. 403 immédiat.
 // Deux catégories :
@@ -28,10 +29,18 @@ const requireHuman = (req, res, next) => {
     if (req.path.startsWith('/admin')) return next();
 
     // Crawlers déclaratifs : 403 immédiat (Zero Bot Mode).
-    // Ils ne peuvent pas passer le PoW — inutile de leur servir la gateway.
-    // Un dev qui teste avec curl ne sera pas bloqué ici (curl n'est pas dans DECLARED_BOT_UA).
     const ua = req.headers['user-agent'] || '';
     if (DECLARED_BOT_UA.test(ua)) {
+        // Marquer immédiatement dans le store — pas d'attente 15 s.
+        if (req.visitorId) {
+            const v = visitors.getVisitor(req.visitorId);
+            if (v && v.decision === 'pending') {
+                v.decision = 'blocked';
+                v.score    = 0;
+                v.reasons  = v.reasons || [];
+                v.reasons.push('[L0-UA] Bot déclaratif — User-Agent interdit (web layer)');
+            }
+        }
         return res.status(403).json({ error: 'bot_access_restricted' });
     }
 

@@ -1222,6 +1222,24 @@ function renderVisitorsTable() {
     const dur = formatDuration(v.startTime, v.lastSeen || v.startTime);
     const evts = (v.events || []).length;
     const pgs  = (v.pages  || []).length;
+
+    // Extract first reason tag + text for inline display, e.g. "[L0-UA] Bot déclaratif"
+    const reasons = v.reasons || v.blockReasons || [];
+    let reasonHtml = '';
+    if (reasons.length) {
+      const first = String(reasons[0]);
+      const m = first.match(/^\[([^\]]+)\]\s*(.*)/);
+      const tag  = m ? m[1] : '';
+      const text = m ? m[2].slice(0, 40) : first.slice(0, 45);
+      reasonHtml = `<div style="margin-top:3px;font-size:0.68rem;color:var(--red);opacity:0.85">
+        ${tag ? `<span style="font-family:'JetBrains Mono',monospace;font-weight:700">[${esc(tag)}]</span> ` : ''}${esc(text)}${(m ? m[2] : first).length > 40 ? '…' : ''}
+      </div>`;
+    } else if (dec === 'pending') {
+      reasonHtml = `<div style="margin-top:3px;font-size:0.68rem;color:var(--text-dim)">⏳ En attente du PoW</div>`;
+    } else if (dec === 'allowed') {
+      reasonHtml = `<div style="margin-top:3px;font-size:0.68rem;color:var(--green);opacity:0.75">✓ Biométrie + PoW validés</div>`;
+    }
+
     return `
     <tr onclick="openVisitor('${esc(v.id)}')">
       <td style="white-space:nowrap">
@@ -1242,7 +1260,10 @@ function renderVisitorsTable() {
           <div class="score-bar"><div class="score-fill" style="width:${sc}%;background:${scoreColor}"></div></div>
         </div>
       </td>
-      <td><span class="badge ${dec}">${dec}</span></td>
+      <td>
+        <span class="badge ${dec}">${dec}</span>
+        ${reasonHtml}
+      </td>
       <td style="font-size:0.78rem;color:var(--text-muted)">
         ${evts} evt · ${pgs} pg<br>
         <span style="color:var(--text-dim)">${v.clicks||0} clk · ${v.formSubmissions||0} frm</span>
