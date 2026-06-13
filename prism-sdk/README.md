@@ -1,48 +1,129 @@
-# 🌈 Prisme SDK — Défense Anti-Scraping par l'Économie
+# 🌈 Prisme SDK — La Défense Anti-Scraping par l'Économie
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-2.0.0-success.svg)]()
+[![Status](https://img.shields.io/badge/Status-Production_Ready-brightgreen.svg)]()
 
-Prisme n'est pas un pare-feu classique. Prisme n'est pas un énième Captcha. **Prisme est une arme d'ingénierie offensive.** 
+> **"Le chasseur est devenu la proie."**
 
-L'architecture Prisme part d'un constat simple : la détection binaire ("Est-ce un bot ou un humain ?") est obsolète. Les bots modernes simulent parfaitement les comportements humains, rendent le JavaScript, et utilisent des proxys résidentiels. Tenter de les bloquer génère des faux positifs inacceptables pour vos vrais clients.
+Prisme n'est pas un pare-feu réseau classique. Prisme n'est pas un énième Captcha. **Prisme est une arme d'ingénierie offensive.** 
+L'architecture Prisme part d'un constat simple : la détection binaire ("Est-ce un bot ou un humain ?") est devenue inefficace face aux IA et aux navigateurs *headless*. 
 
-**Notre solution : Ne bloquez plus aveuglément. Empoisonnez la donnée.**
+**La Doctrine Prisme : Ne bloquez plus aveuglément. Empoisonnez la donnée.**
 
-Le SDK Prisme offre **deux modes de fonctionnement** : un Bouclier L1-L7 complet "clés en main" (Le Gateway), ou un accès "à la carte" à son redoutable moteur de réfraction de données.
-
----
-
-## 🚀 Les Piliers de l'Architecture
-
-### 1. Réfraction Déterministe (Watermark & Jitter)
-Au lieu de renvoyer la vérité absolue, le serveur "réfracte" la donnée selon une clé de session. 
-- **Les données d'agrégation** subissent un micro-bruit ("Jitter"). Le scraper corrompt sa base de données statistique.
-- **Les données cosmétiques** utilisent des synonymes ("Watermark"). Si votre donnée fuite, vous pouvez identifier exactement la source.
-
-### 2. Le Honeypot Structurel
-Le middleware injecte silencieusement des liens fantômes dans le JSON (jamais affichés par l'UI). Si un script l'appelle, c'est **mathématiquement** un bot. Il est alors basculé en mode "Poison Total" sans erreur 403 : le bot télécharge des giga-octets de fausses données en croyant réussir.
-
-### 3. Gateway "Zero Bot" et Orchestrateur Causal (L1-L7)
-Une suite de couches (L1 Réseau, L2 Réputation, L3 Proof-of-Work cryptographique Argon2) qui garantit l'authenticité de chaque requête via un Token Session vérifié.
+Un bot *doit* scraper la couche technique (JSON, DOM). Le SDK Prisme exploite cette unique différence irréductible pour tendre des pièges structurels et ruiner économiquement l'extraction de données de l'attaquant.
 
 ---
 
-## 📦 Installation
+## 📑 Table des Matières
 
-*(Le SDK est actuellement en version locale)*
+1. [Architecture & Schémas](#-architecture--schémas)
+2. [Lancer la Démo et les Tests](#-lancer-la-démo-et-les-tests)
+3. [Intégration & Code](#-intégration--code)
+4. [Explication des Couches (L1 à L7)](#-explication-des-couches-l1-à-l7)
+5. [Le Moteur de Réfraction](#-le-moteur-de-réfraction)
+6. [Dashboard d'Observabilité](#-dashboard-dobservabilité)
 
-```bash
-npm install ./prism-sdk
+---
+
+## 🏗 Architecture & Schémas
+
+Le SDK Prisme s'appuie sur une approche multicouche ("Defense in Depth") orchestrée par un **Moteur Causal** (Prisme Core). 
+
+### Le Flux Global (PrismeShield)
+
+Voici comment Prisme intercepte, qualifie et punit les requêtes suspectes :
+
+```mermaid
+graph TD
+    Client((Client / Scraper)) -->|Requête HTTP| L1[L1: Analyse Réseau & TLS]
+    
+    L1 --> Gate{A-t-il un Session Token L7 ?}
+    
+    Gate -->|Non (Nouveau visiteur)| Challenge[Gateway Challenge Antibot]
+    Challenge -->|1. Test PoW Argon2| PoW[L3: Preuve de Travail]
+    Challenge -->|2. Télémétrie Souris/Touch| Bio[L6: Biométrie & Entropie Gamma]
+    
+    PoW --> Orchestrator
+    Bio --> Orchestrator
+    
+    Gate -->|Oui| Orchestrator{Orchestrateur Causal}
+    
+    Orchestrator -->|Humain Validé| Backend[Votre Backend / API Réelle]
+    Orchestrator -->|Bot Déclaré| Block[Rejet 403 Immédiat]
+    Orchestrator -->|Bot Suspect| Backend
+    
+    Backend -->|Renvoie JSON / HTML| Refractor[Moteur de Réfraction Prisme]
+    
+    Refractor -->|Si Humain| CleanJSON[JSON Intact + Watermark Invisible]
+    Refractor -->|Si Bot Suspect| Poison[JSON Empoisonné + Jitter + Honeypots]
+    
+    CleanJSON --> Client
+    Poison --> Client
+```
+
+### Le Piège du Honeypot Structurel
+
+L'arme fatale de Prisme est le piège structurel. Le middleware injecte de faux liens dans l'API.
+
+```mermaid
+sequenceDiagram
+    participant Scraper
+    participant Prisme
+    participant Backend
+
+    Scraper->>Prisme: GET /api/products
+    Prisme->>Backend: GET /api/products
+    Backend-->>Prisme: [Produit A, Produit B]
+    Prisme-->>Scraper: [Produit A, Produit B, __link: "/api/stats"]
+    Note over Scraper,Prisme: Le lien fantôme n'est pas dans le DOM, seul un script le voit.
+    Scraper->>Prisme: GET /api/stats (Suit le faux lien)
+    Note over Prisme: 🚨 BOT CONFIRMÉ ! Blacklisté.
+    Prisme-->>Scraper: Fausse data (Honeypot)
 ```
 
 ---
 
-## 🛠️ Usage : Deux Niveaux d'Intégration
+## 🎮 Lancer la Démo et les Tests
 
-Prisme SDK s'adapte à votre architecture. Vous pouvez l'utiliser comme un pare-feu complet, ou seulement utiliser son algorithme de réfraction si vous possédez déjà un WAF.
+Le SDK est livré avec une application de démonstration, **NexAPI Cloud**, qui met en œuvre toutes les fonctionnalités de Prisme.
+
+### 1. Démarrer le Serveur de Démonstration
+Placez-vous à la racine du projet et lancez le serveur :
+```bash
+npm install
+node src/server.js
+```
+Le serveur démarrera sur `http://localhost:3000`. Vous verrez dans la console le token Admin généré pour cette session.
+
+### 2. Tester en tant qu'Humain
+1. Ouvrez `http://localhost:3000` dans votre navigateur.
+2. Vous tomberez sur la **Gateway Antibot** (un écran sombre type "Vérification de sécurité").
+3. Bougez votre souris : Prisme collecte l'entropie, calcule le Proof-of-Work (votre CPU chauffe un instant) et valide votre session.
+4. Vous accédez au "vrai" site de démo de NexAPI Cloud.
+
+### 3. Tester en tant que Bot (Script de Test)
+Nous avons inclus un script simulant 20 attaques concurrentes tentant de contourner le système :
+```bash
+node scratch/test-20-bots.js
+```
+**Résultat attendu :** Les bots échouent au PoW ou envoient de mauvaises empreintes. Le serveur ne tombe pas, les bots sont empoisonnés et leurs requêtes sont cataloguées dans les logs d'attaque.
+
+### 4. Tester via cURL
+Tentez d'accéder à l'API protégée sans session validée :
+```bash
+curl -v http://localhost:3000/api/prism/status
+# Résultat : 401 Unauthorized {"error":"human_session_required"}
+```
+
+---
+
+## 🛠 Intégration & Code
+
+Prisme SDK s'adapte à votre architecture selon deux modes :
 
 ### Mode 1 : Intégration Complète (`PrismeShield`)
-*Idéal si vous voulez protéger l'ensemble de votre backend (API, Pages) avec le moteur Causal L1-L7, le challenge PoW et le Dashboard inclus.*
+*Le pare-feu total. Gère le challenge utilisateur, les sessions, et les 7 couches de défense.*
 
 ```javascript
 const express = require('express');
@@ -50,79 +131,89 @@ const { PrismeShield } = require('prism-sdk');
 
 const app = express();
 
-// Déployer le bouclier en tête de votre application
 app.use(PrismeShield({
-    adminToken: process.env.ADMIN_TOKEN, // Accès au Dashboard d'observabilité
-    challengeDifficulty: 100000,         // Difficulté du Proof-of-Work
-    telegramBotToken: process.env.TG_BOT_TOKEN, // Alertes (Optionnel)
+    adminToken: process.env.ADMIN_TOKEN, // Mot de passe du Dashboard (Généré si vide)
+    challengeDifficulty: 100000,         // Difficulté Argon2 (Ajustable selon menace)
+    telegramBotToken: process.env.TG_BOT_TOKEN, // Alertes des attaques graves
     telegramChatId: process.env.TG_CHAT_ID,
-    zeroBotMode: true                    // Bloquer strictement les UAs de bots connus
+    zeroBotMode: true                    // Mode paranoïaque (Refuse les crawlers SEO)
 }));
 
-// Vos routes derrière le bouclier (nécessite une session validée)
-app.get('/api/secure-data', (req, res) => {
-    res.json({ secret: "Donnée protégée par l'Orchestrateur Causal" });
-});
-
-app.listen(3000);
+// Vos routes sont maintenant protégées
+app.get('/api/secret', (req, res) => res.json({ secret: 42 }));
 ```
 
-### Mode 2 : Intégration "À la carte" (`prismMiddleware` / `refract`)
-*Idéal si un dev (L1-L6 propre à lui) veut uniquement intégrer la magie de Prisme à son antibot ou son site.*
+### Mode 2 : Moteur Core Uniquement (`prismMiddleware`)
+*Si vous avez déjà Cloudflare ou un WAF maison, et que vous voulez juste "l'empoisonnement Prisme".*
 
 ```javascript
-const express = require('express');
 const { prismMiddleware, honeypotTrapMiddleware } = require('prism-sdk');
 
-const app = express();
-
-// Politique de réfraction
+// Politique : Que faire de chaque champ ?
 const policy = {
-    price: 'actionable',     // Reste exact
-    description: 'cosmetic', // Modifié par des synonymes (Watermark)
-    rank: 'aggregate'        // Bruit mathématique (Jitter)
+    price: 'actionable',     // Laisser exact (pour vos vrais clients)
+    description: 'cosmetic', // Remplacer par des synonymes (pour piéger les bots)
+    rank: 'aggregate'        // Bruit statistique aléatoire
 };
 
-// 1. Attacher la route piège qui repère les bots
+// 1. Déclarer le piège
 app.use('/__internal/v2/stats', honeypotTrapMiddleware);
 
-// 2. Protéger l'API cible
+// 2. Protéger votre route métier
 app.use('/api/products', prismMiddleware(policy));
 
 app.get('/api/products', (req, res) => {
-    // Renvoyez votre donnée pure. Le middleware s'occupe de la corrompre
-    // ou de l'empoisonner selon la session du visiteur.
-    res.json([
-        { id: 1, name: "Widget", price: 49.99, description: "Un objet robuste", rank: 5 }
-    ]);
+    // Renvoyer les vraies données. Prisme les corrompt silencieusement pour les bots.
+    res.json([{ id: 1, price: 50, description: "Super widget", rank: 10 }]);
 });
 ```
 
 ---
 
-## 📊 Dashboard d'Observabilité Inclus
+## 🛡 Explication des Couches (L1 à L7)
 
-Si vous utilisez le mode `PrismeShield`, des routes d'administration sont exposées (protégées par `adminToken`) :
-- `GET /api/admin/stats` : Vue synthétique de la flotte.
-- `GET /api/admin/report` : Extraction complète de la télémétrie.
-- `GET /api/admin/visitors` : État causal de toutes les sessions.
-- `GET /api/admin/logs` : Historique des événements de sécurité.
+Le "Causal Orchestrator" de Prisme ne prend jamais de décision sur un seul signal. Il construit un graphe de cohérence basé sur 7 couches :
 
----
-
-## ⚠️ Pourquoi c'est le cauchemar des Scrapers ?
-
-| Action du Scraper | Résultat |
-|---|---|
-| Contourne le Captcha/PoW | Télécharge des données empoisonnées au Jitter. Sa base de données perd toute fiabilité. |
-| Utilise 50 Proxys IP | Le Watermark unique dans le texte le trahit juridiquement dès qu'il revend la donnée. |
-| Parse le JSON brutalement | Tombe dans le Honeypot Structurel. Reçoit un Poison Total. |
-| Lance Chrome Headless | Échoue au test biométrique/entropie et subit un Proof-of-Work ruinant son CPU Cloud. |
-
-Le chasseur est devenu la proie.
+1. **L1 (Network & TLS)** : Vérifie la cohérence des Headers HTTP et les signatures TLS (Bloque les faux User-Agents via l'ordre des headers HTTP/2).
+2. **L2 (Access & Réputation)** : Whitelist ASN (ex: bloque les datacenters AWS/DigitalOcean si `zeroBotMode` est actif).
+3. **L3 (Proof of Work)** : Algorithme **Argon2id**. Coûte 0.5s à un humain, mais coûte des millions de dollars en calculs CPU à un scraper distribué. Intègre un lien cryptographique liant le PoW à l'empreinte matérielle pour empêcher les fermes à clics ("PoW farm").
+4. **L4 (Hardware Fingerprint)** : Vérifie la cohérence de l'écran, du GPU, du WebGL, et du Canvas.
+5. **L5 (Automation & API)** : Détecte `navigator.webdriver`, les APIs CDP (Chrome DevTools Protocol) et les injections Puppeteer/Playwright.
+6. **L6 (Biométrie)** : Collecte le mouvement de souris et les événements tactiles. L'Orchestrateur vérifie que la distribution des intervalles de temps respecte une vraie **loi Gamma mathématique**, impossible à simuler proprement pour un bot rudimentaire.
+7. **L7 (Session & Cohérence)** : Fusionne les 6 couches précédentes en un JWT chiffré, stockant un verdict temporel (`trustScore`).
 
 ---
 
-## Licence
+## 💎 Le Moteur de Réfraction
 
-MIT. Protégez vos données.
+Au lieu de renvoyer une erreur 403, Prisme renvoie des données réfractées.
+
+- **Watermarking** : Prisme modifie légèrement un texte (synonymes invisibles) en le liant au `SessionSeed` du visiteur. Si un concurrent publie votre base de données en ligne, Prisme peut vous prouver mathématiquement de quelle session exacte provient la fuite.
+- **Jitter** : Ajoute du bruit gaussien aux variables numériques (Prix, Statistiques). Le bot qui tente de moyenner la donnée corrompt l'intégralité de sa base.
+- **Leurre (Decoy)** : Si le bot est confondu par le Honeypot, Prisme ne répond plus la vraie donnée mais génère un JSON totalement fictif mais structurellement valide.
+
+---
+
+## 🎛 Dashboard d'Observabilité
+
+Prisme intègre une interface d'administration via API pour surveiller la posture de la flotte.
+
+**Routes exposées (Nécessite le Header `x-admin-token`):**
+- `GET /api/admin/stats` : Retourne la posture actuelle du bouclier (Normal, Under Attack), la difficulté dynamique du PoW, et les compteurs d'attaques.
+- `GET /api/admin/visitors` : Expose l'état de l'Orchestrateur Causal pour chaque session active.
+- `GET /api/admin/report` : Génère un JSON exhaustif de télémétrie pour archivage (Forensics).
+
+---
+
+### Résumé des Cas d'Échec des Attaquants
+
+| Attaque | Technologie Bloquante | Résultat |
+| :--- | :--- | :--- |
+| **Script Simple (Python, cURL)** | Gateway + PoW (L3) + L1 | Bloqué au premier écran. Le serveur ne calcule même pas de session lourde. |
+| **Puppeteer (Chrome Headless)** | Biométrie (L6) + Automation (L5) | Mouvements de souris trahis par la loi de probabilité Gamma. Session étiquetée "Suspect". |
+| **Ferme à Clics / Résolution Humaine** | Cryptographic Binding (L3-L4) | Le PoW résolu par la ferme est invalidé car le hash matériel ne correspond pas au client final. |
+| **Scraping Manuel Lente** | Honeypot & Watermarking | Tombe inévitablement dans un lien fantôme ou vole des données tatouées (Watermark). Poursuites légales possibles. |
+
+---
+
+*Prisme — Protégez votre capital donnée.*
