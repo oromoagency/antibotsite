@@ -4,9 +4,9 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { RULES } = require('../../src/antibot/coherence/contradictionRules');
-const { createSession } = require('../../src/antibot/session/sessionModel');
-const { createFact } = require('../../src/antibot/coherence/factModel');
+const { RULES } = require('../../prism-sdk/src/server/engine/antibot/coherence/contradictionRules');
+const { createSession } = require('../../prism-sdk/src/server/engine/antibot/session/sessionModel');
+const { createFact } = require('../../prism-sdk/src/server/engine/antibot/coherence/factModel');
 
 function makeSession(overrides = {}) {
     const s = createSession();

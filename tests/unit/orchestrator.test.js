@@ -5,8 +5,8 @@
 
 const { test, describe, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { decideReality, calculateSuspicion } = require('../../src/antibot/policy/causalOrchestrator');
-const { createSession } = require('../../src/antibot/session/sessionModel');
+const { decideReality, calculateSuspicion } = require('../../prism-sdk/src/server/engine/antibot/policy/causalOrchestrator');
+const { createSession } = require('../../prism-sdk/src/server/engine/antibot/session/sessionModel');
 
 function makeSession(overrides = {}) {
     const s = createSession();
