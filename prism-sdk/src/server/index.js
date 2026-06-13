@@ -3,6 +3,7 @@ const honeypot = require('./honeypot');
 const suspicion = require('./suspicion');
 const pow = require('./pow');
 const revelation = require('./revelation');
+const captureWatermark = require('./captureWatermark');
 const { PrismeShield } = require('./engine');
 
 /**
@@ -46,6 +47,7 @@ module.exports = {
     ...honeypot,
     ...pow,
     ...revelation,
+    ...captureWatermark,
     prismMiddleware,
     PrismeShield,
     store: require('./engine').store,

@@ -779,6 +779,30 @@
                     tableContainer.classList.remove('ocr-jamming');
                 }
 
+                // Watermark de CAPTURE (traçabilité post-fuite) : bande déterministe rendue
+                // SOUS le tableau, en COUCHE SÉPARÉE — elle est insérée comme sibling APRÈS
+                // le conteneur, donc HORS du sous-arbre .ocr-jamming : le feDisplacementMap
+                // ne la touche pas (conflit OCR résolu). Survit à un screenshot → trace la
+                // session fuiteuse. N'apparaît que pour watermarked/decoy.
+                let wmEl = document.getElementById('prism-capture-wm');
+                if (demo.captureWatermark && demo.captureWatermark.css) {
+                    let wmStyle = document.getElementById('prism-capture-wm-style');
+                    if (!wmStyle) {
+                        wmStyle = document.createElement('style');
+                        wmStyle.id = 'prism-capture-wm-style';
+                        document.head.appendChild(wmStyle);
+                    }
+                    wmStyle.textContent = demo.captureWatermark.css;
+                    if (!wmEl) {
+                        wmEl = document.createElement('div');
+                        wmEl.id = demo.captureWatermark.elementId || 'prism-capture-wm';
+                        wmEl.setAttribute('aria-hidden', 'true');
+                        tableContainer.insertAdjacentElement('afterend', wmEl);
+                    }
+                } else if (wmEl) {
+                    wmEl.remove();
+                }
+
                 // Révélation progressive : injecter les centièmes du prix (variables CSS)
                 // dans un <style>. Le JSON ne contient que la partie entière ; seul ce
                 // canal CSS + l'assemblage ci-dessous reconstitue le prix exact. Un

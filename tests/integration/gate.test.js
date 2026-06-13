@@ -91,4 +91,30 @@ describe('Gate Prisme — contrat d\'accès Zero Bot', () => {
         assert.equal(r.status, 200);
         assert.match(await r.text(), /JavaScript/i);
     });
+
+    test('POST /api/admin/decode-watermark sans token → 401', async () => {
+        const r = await fetch(base + '/api/admin/decode-watermark', {
+            method: 'POST',
+            headers: { 'user-agent': BROWSER, 'content-type': 'application/json' },
+            body: JSON.stringify({ columns: [1, 2, 3] }),
+        });
+        assert.equal(r.status, 401);
+    });
+
+    test('POST /api/admin/decode-watermark : roundtrip d\'une empreinte encodée', async () => {
+        const { encodeWatermark, currentEpoch, BASE_L, DELTA_L } = require('../../prism-sdk');
+        const seed = 'integration-leak-seed';
+        const w = encodeWatermark(seed, currentEpoch());
+        // Reconstruire les colonnes idéales depuis les bits rendus (BASE ± DELTA).
+        const columns = w.bits.map((b) => BASE_L + (b ? DELTA_L : -DELTA_L));
+        const r = await fetch(base + '/api/admin/decode-watermark', {
+            method: 'POST',
+            headers: { 'user-agent': BROWSER, 'content-type': 'application/json', 'x-admin-token': 'integration_admin_token' },
+            body: JSON.stringify({ columns }),
+        });
+        assert.equal(r.status, 200);
+        const j = await r.json();
+        assert.equal(j.valid, true, 'empreinte décodée valide');
+        assert.equal(j.id, w.id, 'id décodé == id encodé');
+    });
 });

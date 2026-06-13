@@ -109,6 +109,19 @@ La page visible contient 4 pièges invisibles pour les humains, mais actionnable
 
 Tout clic sur `/api/feedback-invisible` est tracé et marque la session comme hostile.
 
+### 7. Watermark de Capture (Traçabilité Post-Fuite) 🔬
+> **Cadrage honnête :** aucun truc côté client ne *bloque* de façon fiable un screenshot en navigateur headless moderne (`page.screenshot()` rend une frame fraîche). Cette défense ne prétend pas bloquer — elle **trace**.
+
+Pour les réalités dégradées (`watermarked`/`decoy`), Prisme rend une bande visuelle déterministe **sous le tableau de données**, encodant l'empreinte de session (`sessionSeed` + époque) par micro-variations de luminance. Si un opérateur capture l'écran puis republie l'image, la marque **survit au pixel** (et même au « analog hole » : une photo de l'écran) → on retrouve la session fuiteuse, là où le watermark JSON disparaît dès qu'on passe par l'image.
+
+- **Couche séparée du brouillage OCR** : la bande est un *sibling* du tableau, hors du sous-arbre filtré par `#ocr-scramble` — le `feDisplacementMap` ne la détruit pas (les deux défenses coexistent).
+- **Décodeur server-side réel** : l'admin dépose un screenshot dans l'onglet **Forensics** ; le navigateur échantillonne la bande et le serveur décode l'empreinte (`POST /api/admin/decode-watermark`) puis la relie à une session active.
+- **Zéro fausse attribution** : code à répétition (vote majoritaire) + checksum 8 bits → un screenshot quelconque / du bruit décode `valid:false`. On n'accuse jamais une session par erreur.
+- **UX & accessibilité** : bande statique (aucun flash → WCAG 2.3.1 N/A), hors du texte (aucun impact contraste), jamais rendue pour un humain `normal`.
+- **Limite assumée** : conçu pour survivre à un screenshot PNG direct + recompression légère. Une recompression JPEG agressive ou un fort redimensionnement peuvent détruire le canal — c'est un filet de **dernier recours**, pas une garantie.
+
+Code : `prism-sdk/src/server/captureWatermark.js` (`encodeWatermark` / `decodeWatermark` / `decodeColumns`).
+
 ---
 
 ## ⚙️ Architecture du Projet

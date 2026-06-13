@@ -3,7 +3,10 @@ const router  = express.Router();
 const config  = require('../config');
 
 const { getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
-const { refract, currentEpoch, honeypot, frictionMs, fragmentField } = require('../../prism-sdk');
+const {
+    refract, currentEpoch, honeypot, frictionMs, fragmentField,
+    encodeWatermark, decodeWatermark, decodeColumns, sessionWatermarkId, sessionStore,
+} = require('../../prism-sdk');
 
 // Intensité du poison agrégat selon la réalité décidée à la gate (qui circule
 // désormais jusqu'ici). Une session 'decoy' (hostile confirmée) reçoit des
@@ -62,17 +65,65 @@ router.get('/prism/demo', async (req, res) => {
     const { rows: fragmented, styles: revealStyles } = fragmentField(refracted, 'price');
 
     // Ajouter honeypot seulement pour les sessions suspectes
-    const payload = (reality === 'decoy' || reality === 'watermarked')
-        ? honeypot.injectHoneypot(fragmented, seed)
-        : fragmented;
+    const degraded = (reality === 'decoy' || reality === 'watermarked');
+    const payload  = degraded ? honeypot.injectHoneypot(fragmented, seed) : fragmented;
+
+    // Watermark de CAPTURE (traçabilité post-fuite) : pour les réalités dégradées,
+    // on émet une bande visuelle déterministe (empreinte seed+époque) rendue SOUS le
+    // tableau, en COUCHE SÉPARÉE du filtre OCR. Elle survit à un screenshot/photo de
+    // l'écran → on retrouve la session fuiteuse. Ne s'applique JAMAIS à 'normal'.
+    const captureWatermark = degraded
+        ? (() => { const w = encodeWatermark(seed, epoch); return { css: w.css, elementId: w.elementId }; })()
+        : null;
 
     res.json({
         lane:         getLane(req),
         suspicion:    parseFloat(getSuspicion(req).toFixed(2)),
         data:         payload,
         revealStyles,
+        captureWatermark,
         reality,
     });
+});
+
+// POST /api/admin/decode-watermark — outil forensics : décode l'empreinte de capture
+// depuis les luminances échantillonnées d'un screenshot (par l'admin) et relie l'id
+// décodé à une session active. Porte = token admin (le Shield laisse passer sur token).
+router.post('/admin/decode-watermark', (req, res) => {
+    const tok = req.headers['x-admin-token'];
+    if (!config.ADMIN_TOKEN || tok !== config.ADMIN_TOKEN) {
+        return res.status(401).json({ error: 'admin_token_required' });
+    }
+    const { luminances, columns } = req.body || {};
+    let decoded;
+    if (Array.isArray(columns)) {
+        decoded = decodeColumns(columns.map(Number));        // brut → le serveur rééchantillonne
+    } else if (Array.isArray(luminances)) {
+        decoded = decodeWatermark(luminances.map(Number));   // déjà aligné sur les cellules
+    } else {
+        return res.status(400).json({ error: 'columns_or_luminances_array_required' });
+    }
+    const epoch = (req.body && typeof req.body.epoch === 'string') ? req.body.epoch : currentEpoch();
+
+    if (!decoded.valid) {
+        return res.json({ valid: false, id: null, confidence: decoded.confidence, epoch, matches: [] });
+    }
+
+    // Relier l'id décodé à une session active (les deux seeds possibles : seed durable
+    // du JWT et seed interne). Indicatif — l'id reste une preuve même sans match vivant.
+    const matches = [];
+    for (const s of sessionStore.listSessions()) {
+        const seeds = [s.prisme && s.prisme.sessionSeed, s.internalSeed].filter(Boolean);
+        if (seeds.some((seed) => sessionWatermarkId(seed, epoch) === decoded.id)) {
+            matches.push({
+                id:       s.id,
+                reality:  (s.prisme && s.prisme.reality) || 'unknown',
+                lastSeen: new Date(s.lastSeenAt).toISOString(),
+            });
+        }
+    }
+
+    res.json({ valid: true, id: decoded.id, confidence: decoded.confidence, epoch, matches });
 });
 
 // GET /api/demo/v1/metrics — réfracté

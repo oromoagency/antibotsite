@@ -219,6 +219,33 @@ const cents = parseInt(getComputedStyle(document.documentElement).getPropertyVal
 const price = (row.price + cents / 100).toFixed(2);
 ```
 
+### Watermark de Capture (`encodeWatermark` / `decodeWatermark`)
+
+> **Ce n'est PAS un anti-screenshot.** Aucun truc client ne bloque un `page.screenshot()` en headless moderne. C'est un **traceur post-fuite** : la marque survit au pixel (screenshot, photo de l'écran) et identifie la session qui a fui.
+
+`encodeWatermark(seed, epoch)` produit une bande visuelle déterministe (CSS) encodant l'empreinte de session, à rendre **sous** la donnée sensible, en couche séparée du filtre OCR. Le décodeur relit l'empreinte depuis une image.
+
+```javascript
+const { encodeWatermark, decodeWatermark, decodeColumns, sessionWatermarkId } = require('prism-sdk');
+
+// ── ENCODAGE (serveur, pour les réalités dégradées uniquement) ──
+const wm = encodeWatermark(seed, currentEpoch());
+// wm.css        : règle CSS pour #prism-capture-wm (gradient à blocs ±luminance)
+// wm.elementId  : 'prism-capture-wm'  (le client crée un <div> sibling, hors .ocr-jamming)
+// wm.id         : empreinte 16 bits de la session
+res.json({ data, captureWatermark: { css: wm.css, elementId: wm.elementId } });
+
+// ── DÉCODAGE (outil forensics, depuis un screenshot) ──
+// L'admin échantillonne la bande (luminance par colonne) côté navigateur, puis :
+const r = decodeColumns(columns);   // rééchantillonne → décode (longueur quelconque)
+// r = { valid, id, confidence, bits }
+// valid:false sur bruit/recompression forte → ZÉRO fausse attribution (checksum + vote majoritaire)
+
+// Relier l'id décodé à une session : comparer avec sessionWatermarkId(session.seed, epoch).
+```
+
+Primitives exportées : `encodeWatermark`, `decodeWatermark` (cellules alignées), `decodeColumns` (colonnes brutes, rééchantillonnées serveur), `decodeStripPixels` (image RGBA), `sessionWatermarkId`. **Limite assumée** : survit à un PNG direct + recompression légère, pas à un JPEG très agressif / fort redimensionnement.
+
 ---
 
 ## 🎛 Dashboard d'Observabilité

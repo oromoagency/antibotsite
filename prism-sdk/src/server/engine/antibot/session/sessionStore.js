@@ -38,6 +38,17 @@ function updateSession(session) {
     }
 }
 
+// Liste des sessions actives (non expirées) — utilisée par l'outil admin de décodage
+// de watermark de capture pour relier un id décodé à une session vivante.
+function listSessions() {
+    const now = Date.now();
+    const out = [];
+    for (const session of store.values()) {
+        if (now - session.lastSeenAt <= TTL_MS) out.push(session);
+    }
+    return out;
+}
+
 // Nettoyage periodique pour eviter la fuite de memoire
 const _cleanupTimer = setInterval(() => {
     const now = Date.now();
@@ -53,5 +64,6 @@ if (_cleanupTimer.unref) _cleanupTimer.unref();
 module.exports = {
     getSession,
     initializeSession,
-    updateSession
+    updateSession,
+    listSessions
 };

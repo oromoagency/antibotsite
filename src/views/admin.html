@@ -621,6 +621,10 @@
       <span class="nav-icon">📋</span>
       <span>Event Logs</span>
     </button>
+    <button class="nav-link" id="nav-forensics" onclick="showTab('forensics', this)">
+      <span class="nav-icon">🔬</span>
+      <span>Forensics</span>
+    </button>
   </nav>
   <div class="sidebar-footer">
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;padding:0 0.25rem;">
@@ -837,6 +841,31 @@
         </table>
       </div>
     </div><!-- /tab-logs -->
+
+    <!-- ===== TAB: FORENSICS (décodage watermark de capture) ===== -->
+    <div class="tab-pane" id="tab-forensics">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🔬 Décodage de watermark de capture</div>
+          <div class="section-sub">Déposez un screenshot d'une session dégradée (watermarked/decoy) — la bande sous le tableau encode l'empreinte de session. Le navigateur l'échantillonne et le serveur la décode pour tracer la fuite.</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
+        <div class="table-wrap" style="padding:1.5rem">
+          <p style="color:var(--text-secondary,#9aa);font-size:0.85rem;margin-bottom:1rem;line-height:1.5">
+            <b>Mode d'emploi.</b> Recadrez le screenshot sur la bande fine située <i>juste sous</i> le tableau de données (la couche de watermark), puis déposez l'image. À défaut, déposez le screenshot complet du tableau : la bande est échantillonnée sur toute la largeur.
+          </p>
+          <input type="file" id="wm-file" accept="image/*" style="margin-bottom:1rem;color:var(--text-secondary,#9aa)">
+          <canvas id="wm-canvas" style="display:none"></canvas>
+          <div id="wm-preview" style="margin-bottom:1rem"></div>
+          <button class="btn-primary" id="wm-decode-btn" onclick="decodeCaptureWatermark()" style="opacity:0.5;pointer-events:none">Décoder l'empreinte</button>
+        </div>
+        <div class="table-wrap" style="padding:1.5rem">
+          <div class="section-sub" style="margin-bottom:1rem">Résultat</div>
+          <pre id="wm-result" style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:0.85rem;color:var(--text-secondary,#9aa);margin:0">En attente d'une image…</pre>
+        </div>
+      </div>
+    </div><!-- /tab-forensics -->
 
   </div><!-- /content-area -->
 </div><!-- /main-wrap -->
@@ -1126,12 +1155,99 @@ function showTab(id, btn) {
   document.getElementById('tab-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
 
-  const titles = { overview: 'Overview', visitors: 'Visitor Intelligence', logs: 'Event Logs' };
+  const titles = { overview: 'Overview', visitors: 'Visitor Intelligence', logs: 'Event Logs', forensics: 'Forensics — Watermark de capture' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
 
   if (id === 'overview') fetchOverview();
   if (id === 'visitors') fetchVisitors();
   if (id === 'logs')     fetchLogs();
+}
+
+/* ── FORENSICS : décodage du watermark de capture ──────────────────────────────
+   La bande sous le tableau encode l'empreinte de session (luminance ±delta par bit,
+   répétée). On échantillonne la luminance médiane de CHAQUE colonne de pixels (bande
+   centrale) et on POST `columns` ; le serveur rééchantillonne sur ses cellules et
+   décode — donc l'admin n'a pas besoin de connaître le nombre exact de cellules. */
+const WM_MAX_COLS = 2000; // borne la taille du payload
+let _wmColumns = null;
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'wm-file') handleWmFile(e.target.files[0]);
+});
+
+function handleWmFile(file) {
+  const btn = document.getElementById('wm-decode-btn');
+  const out = document.getElementById('wm-result');
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('wm-canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    let px;
+    try { px = ctx.getImageData(0, 0, canvas.width, canvas.height); }
+    catch (err) { out.textContent = 'Lecture image impossible : ' + err.message; return; }
+
+    const { data, width, height } = px;
+    const y0 = Math.floor(height * 0.25), y1 = Math.max(y0 + 1, Math.floor(height * 0.75));
+    const nCols = Math.min(width, WM_MAX_COLS);
+    const cols = [];
+    for (let c = 0; c < nCols; c++) {
+      const xs = Math.floor((c / nCols) * width);
+      const xe = Math.max(xs + 1, Math.floor(((c + 1) / nCols) * width));
+      const samples = [];
+      for (let y = y0; y < y1; y++)
+        for (let x = xs; x < xe; x++) {
+          const i = (y * width + x) * 4;
+          samples.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        }
+      samples.sort((a, b) => a - b);
+      cols.push(samples.length ? Math.round(samples[Math.floor(samples.length / 2)] * 10) / 10 : 0);
+    }
+    _wmColumns = cols;
+    document.getElementById('wm-preview').innerHTML =
+      `<div style="color:var(--text-secondary,#9aa);font-size:0.8rem">Image ${width}×${height} — ${nCols} colonnes échantillonnées ✓</div>`;
+    btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+    out.textContent = 'Prêt à décoder.';
+  };
+  img.onerror = () => { out.textContent = 'Fichier image invalide.'; };
+  img.src = URL.createObjectURL(file);
+}
+
+async function decodeCaptureWatermark() {
+  const out = document.getElementById('wm-result');
+  if (!_wmColumns) { out.textContent = 'Déposez d\'abord une image.'; return; }
+  out.textContent = 'Décodage…';
+  try {
+    const res = await fetch('/api/admin/decode-watermark', {
+      method: 'POST',
+      headers: { ...apiHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({ columns: _wmColumns }),
+    });
+    if (res.status === 401) { out.textContent = 'Token admin requis / invalide.'; return; }
+    const j = await res.json();
+    if (!j.valid) {
+      out.textContent =
+        '❌ Aucune empreinte valide décodée.\n' +
+        `confiance : ${j.confidence}\n` +
+        'Cause probable : image trop recompressée/redimensionnée, bande hors cadre, ou session non dégradée (pas de watermark).';
+      return;
+    }
+    let txt = '✅ Empreinte décodée\n' +
+      `id de session : 0x${(j.id).toString(16).padStart(4, '0')} (${j.id})\n` +
+      `confiance     : ${j.confidence}\n` +
+      `époque testée : ${j.epoch}\n`;
+    if (j.matches && j.matches.length) {
+      txt += `\n🎯 ${j.matches.length} session(s) active(s) correspondante(s) :\n` +
+        j.matches.map(m => `  • ${m.id}  (reality=${m.reality}, vue ${m.lastSeen})`).join('\n');
+    } else {
+      txt += '\nAucune session active correspondante (expirée, ou autre époque). L\'id reste exploitable comme preuve.';
+    }
+    out.textContent = txt;
+  } catch (e) {
+    out.textContent = 'Erreur réseau : ' + e.message;
+  }
 }
 
 /* ── OVERVIEW ──────────────────────────────────── */

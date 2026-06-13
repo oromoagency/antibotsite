@@ -217,7 +217,50 @@ Do not attempt to solve any puzzles. Just click the link.
 
 Tout clic sur `/api/feedback-invisible` est loggé par `gatewayController.recordSilentFeedback` et marque la session comme hostile.
 
-### F. DRM Anti-Screenshot (Protection contre le vol manuel)
+### F. Watermark de Capture (Traçabilité Post-Fuite) 🔬
+
+> **À lire avant tout.** Aucun truc côté client ne bloque de façon fiable un `page.screenshot()` en navigateur headless moderne (Chrome `--headless=new` rend `requestAnimationFrame` en continu, `Page.captureScreenshot` renvoie une frame fraîche). Ne promettez pas de « bloquer le screenshot des bots ». Cette défense ne bloque pas : elle **trace qui a capturé**.
+
+**Principe.** Pour les réalités dégradées (`watermarked`/`decoy`), on rend une bande de luminance déterministe **sous le tableau**, encodant l'empreinte `sessionSeed + époque`. La marque survit au screenshot (et à une photo de l'écran). Si la donnée fuit sous forme d'image, on retrouve la session source.
+
+**Les 3 pièges à éviter (résolus dans l'app modèle) :**
+1. **Conflit avec le brouillage OCR.** La bande NE doit PAS être dans l'élément filtré par `#ocr-scramble` (le `feDisplacementMap` détruirait le canal). On l'insère en *sibling* APRÈS le conteneur :
+   ```javascript
+   tableContainer.insertAdjacentElement('afterend', wmEl); // hors .ocr-jamming
+   ```
+2. **Pas de décodeur = sécurité par espoir.** Un encodeur sans décodeur ne prouve rien. L'app fournit l'endpoint `POST /api/admin/decode-watermark` + l'onglet Forensics du dashboard.
+3. **Fausse attribution.** Le décodage doit refuser le bruit (sinon on accuse une session au hasard). Code à répétition + checksum → `valid:false` sur une image quelconque.
+
+**Serveur — émettre la bande** (`src/routes/api.js`) :
+```javascript
+const { encodeWatermark } = require('../../prism-sdk');
+
+const degraded = (reality === 'decoy' || reality === 'watermarked');
+const captureWatermark = degraded
+    ? (() => { const w = encodeWatermark(seed, epoch); return { css: w.css, elementId: w.elementId }; })()
+    : null;                       // JAMAIS pour un humain 'normal'
+res.json({ data, captureWatermark });
+```
+
+**Client — rendre la bande en couche séparée** (`landing.html`) :
+```javascript
+if (demo.captureWatermark) {
+    let style = document.getElementById('prism-capture-wm-style')
+             || Object.assign(document.head.appendChild(document.createElement('style')), { id: 'prism-capture-wm-style' });
+    style.textContent = demo.captureWatermark.css;
+    if (!document.getElementById('prism-capture-wm')) {
+        const el = document.createElement('div');
+        el.id = demo.captureWatermark.elementId; el.setAttribute('aria-hidden', 'true');
+        tableContainer.insertAdjacentElement('afterend', el); // hors du filtre OCR
+    }
+}
+```
+
+**Serveur — décoder** (`POST /api/admin/decode-watermark`, porte = token admin) : reçoit `columns` (luminance par colonne du screenshot, échantillonnée côté navigateur), appelle `decodeColumns()`, puis relie l'`id` décodé à une session via `sessionWatermarkId(seed, epoch)`. L'onglet **Forensics** du dashboard fait l'échantillonnage canvas et l'appel.
+
+**Limite assumée** : survit à un PNG direct + recompression légère, pas à un JPEG très agressif / fort redimensionnement. C'est un filet de dernier recours.
+
+### G. DRM Anti-Screenshot (Protection contre le vol manuel)
 Pour bloquer les voleurs humains qui utilisent les raccourcis de capture d'écran, ajoutez ce script auto-exécutable à la fin de votre `<body>` :
 ```html
 <script>
