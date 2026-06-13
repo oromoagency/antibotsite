@@ -5,9 +5,11 @@ const L7_session    = require('../layers/L7_session');
 const L2_access     = require('../layers/L2_access');
 const visitorTracker = require('../middlewares/visitorTracker');
 
-// UAs qui se déclarent crawler sans vérification rDNS — Zero Bot : 403 immédiat.
-// Ces patterns ne bloquent jamais un humain normal (aucun vrai browser ne les envoie).
-const DECLARED_BOT_UA = /googlebot|bingbot|yandexbot|baiduspider|duckduckbot|slurp|gptbot|ccbot|anthropic-ai|perplexitybot|bytespider|ahrefsbot|semrushbot|dotbot|rogerbot|exabot|mj12bot/i;
+// UAs déclaratifs — jamais envoyés par un vrai navigateur humain. 403 immédiat.
+// Deux catégories :
+//   - Crawlers/bots déclaratifs (moteurs, IA, SEO)
+//   - Bibliothèques HTTP script (Python, curl, etc.) — jamais un humain réel
+const DECLARED_BOT_UA = /googlebot|bingbot|yandexbot|baiduspider|duckduckbot|slurp|gptbot|ccbot|anthropic-ai|perplexitybot|bytespider|ahrefsbot|semrushbot|dotbot|rogerbot|exabot|mj12bot|python-requests|python-urllib|aiohttp|scrapy|curl\/|wget\/|go-http-client|java\/|okhttp\/|node-fetch|axios\/|libwww|httpie|nmap|masscan|nikto|sqlmap/i;
 
 const VIEWS_ROOT = path.join(__dirname, '../views');
 
