@@ -56,6 +56,7 @@ exports.getChallengeConfig = (req, res) => {
     for (const [n, exp] of pendingNonces) {
         if (Date.now() > exp) pendingNonces.delete(n);
     }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ difficulty: posture.currentDifficulty(), serverNonce });
 };
 
