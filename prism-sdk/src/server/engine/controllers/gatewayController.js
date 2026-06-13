@@ -27,6 +27,7 @@ const crypto = require('crypto');
 const sessionStore = require('../antibot/session/sessionStore');
 const coherenceGraph = require('../antibot/coherence/coherenceGraph');
 const causalOrchestrator = require('../antibot/policy/causalOrchestrator');
+const networkCollector = require('../antibot/collectors/networkCollector');
 
 // Phase 9 — intelligence globale : chaque décision est JOURNALISÉE (pure
 // observation, aucune heuristique) puis la posture de flotte est réévaluée.
@@ -171,17 +172,22 @@ exports.verifyChallenge = async (req, res) => {
     // --- L6 : Biométrie comportementale ---
     const bio = tag(L6_biometrics.analyze({ mouseTrajectory, keystrokes }), 'L6-Biométrie');
 
-    // --- Prisme Causal : Conversion des couches en "Faits" pour l'Orchestrateur ---
-    if (!visitor) {
-        visitor = visitors.createVisitor({ ip, userAgent: req.headers['user-agent'] || 'unknown' });
-    }
-
-    let prismeSession = sessionStore.getSession(visitor.id);
+    // --- Prisme Causal : la session de SÉCURITÉ est req.visitor (cookie opaque nx_sess),
+    // attachée en amont par antibotEntry. C'est LA MÊME session que lit la couche de
+    // service (prismAdapter / routes API). La réalité décidée ici circule donc jusqu'au
+    // serving — c'est le correctif central : avant, reality était calculée puis jetée.
+    let prismeSession = req.visitor;
     if (!prismeSession) {
-        prismeSession = sessionStore.initializeSession(visitor.id);
-        prismeSession.ipHistory.push(ip);
-        prismeSession.userAgentHistory.push(req.headers['user-agent'] || 'unknown');
+        // Filet : appel direct à /api/verify-challenge sans être passé par antibotEntry.
+        prismeSession = sessionStore.initializeSession();
     }
+    if (!prismeSession.ipHistory.includes(ip)) prismeSession.ipHistory.push(ip);
+    const uaNow = req.headers['user-agent'] || 'unknown';
+    if (!prismeSession.userAgentHistory.includes(uaNow)) prismeSession.userAgentHistory.push(uaNow);
+
+    // Faits réseau (http_request + bot_user_agent + botClass) : active les règles de
+    // cohérence réseau à la gate, là où toute la télémétrie client est disponible.
+    networkCollector.collect(req, prismeSession);
 
     const addFact = (name, value) => {
         prismeSession.facts.push({
@@ -198,13 +204,19 @@ exports.verifyChallenge = async (req, res) => {
     // throttling réseau, RFP activé → faux positifs fréquents. Seuil : ≤ -40.
     if (autoRaw.score <= -40) addFact('automation_anomaly', { reasons: autoRaw.reasons });
     if (hwRaw.score < 0) addFact('hardware_anomaly', { reasons: hwRaw.reasons });
-    
+
     if (bio.score <= -60) addFact('synthetic_biometrics', { reasons: bio.reasons });
     else if (bio.score < 0) addFact('biometric_anomaly', { reasons: bio.reasons });
 
+    // Passer le PoW Argon2id prouve l'exécution JS et la capacité de calcul : la
+    // cohérence est dès lors "suffisante". Un humain propre (aucune contradiction)
+    // obtient donc 'normal' ; les contradictions corroborées dégradent la réalité.
+    prismeSession.humanValidated  = true;
+    prismeSession.coherence.level = 'sufficient';
+
     // --- Évaluation Prisme Causal (Zero Bot Mode) ---
     const newContradictions = coherenceGraph.evaluateSession(prismeSession);
-    
+
     // Journalisation des contradictions
     if (newContradictions.length > 0) {
         console.log(`[PRISME] Contradictions détectées pour ${ip}:`);
@@ -212,14 +224,20 @@ exports.verifyChallenge = async (req, res) => {
     }
 
     const reality = causalOrchestrator.decideReality(prismeSession);
-    
-    if (reality === 'normal') {
-        prismeSession.humanValidated = true;
-    }
+
+    // PERSISTANCE DE LA RÉALITÉ — le cœur du correctif d'architecture.
+    prismeSession.prisme.reality   = reality;
+    prismeSession.prisme.updatedAt = Date.now();
+    if (reality === 'blocked') prismeSession.humanValidated = false;
 
     sessionStore.updateSession(prismeSession);
 
-    // --- Synchronisation avec visitors.js (Dashboard Admin) ---
+    // --- Synchronisation avec visitors.js (Dashboard Admin / observabilité) ---
+    // Le store `visitors` (_nx_session) est PUREMENT pour l'affichage admin ; il ne
+    // porte aucune décision de sécurité (celle-ci vit dans prismeSession / nx_sess).
+    if (!visitor) {
+        visitor = visitors.createVisitor({ ip, userAgent: uaNow });
+    }
     visitors.updateVisitor(visitor.id, {
         score: Math.round((1.0 - prismeSession.suspicion) * 100), // Mappe la suspicion [0,1] vers un score [100,0] pour compatibilité UI
         decision: reality === 'blocked' ? 'blocked'
@@ -258,8 +276,11 @@ exports.verifyChallenge = async (req, res) => {
     }
 
     // --- L7 : Session (Token Opaque) ---
+    // Le seed durable = internalSeed de la session opaque (nx_sess). Embarqué dans le
+    // JWT puis réhydraté par le Shield : le watermark reste STABLE même après un
+    // redémarrage du store RAM, condition nécessaire pour tracer une fuite dans le temps.
     usedNonces.add(nonce);
-    const token = L7_session.createToken(ip, fingerprint, v.score, v.suspicion, visitor.sessionSeed);
+    const token = L7_session.createToken(ip, fingerprint, v.score, v.suspicion, prismeSession.internalSeed, reality);
     res.cookie('human_auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

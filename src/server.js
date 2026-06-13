@@ -111,7 +111,13 @@ app.use(PrismeShield({
 app.use('/api', apiRoutes);
 app.use('/', webRoutes);
 
-app.listen(config.PORT, () => {
-    console.log(`[ANTIBOT] Serveur lancé sur le port ${config.PORT}`);
-    console.log(`[ANTIBOT] Difficulté PoW: ${config.CHALLENGE_DIFFICULTY}`);
-});
+// N'écoute QUE si lancé directement (`node src/server.js`).
+// Importé par les tests d'intégration, le module exporte `app` sans ouvrir de port.
+if (require.main === module) {
+    app.listen(config.PORT, () => {
+        console.log(`[ANTIBOT] Serveur lancé sur le port ${config.PORT}`);
+        console.log(`[ANTIBOT] Difficulté PoW: ${config.CHALLENGE_DIFFICULTY}`);
+    });
+}
+
+module.exports = app;

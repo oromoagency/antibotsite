@@ -60,6 +60,14 @@ function PrismeShield(options = {}) {
             return next();
         }
 
+        // Le dashboard admin (HTML) est servi directement, sans gate PoW humain :
+        // sa vraie porte est le token admin exigé sur les routes /api/admin/*
+        // (vérifié côté contrôleur). Cacher l'écran de login derrière le PoW
+        // empêchait simplement l'admin légitime d'y accéder.
+        if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+            return next();
+        }
+
         const ua = req.headers['user-agent'] || '';
         if (DECLARED_BOT_UA.test(ua)) {
             if (config.ZERO_BOT_MODE) {
@@ -76,7 +84,24 @@ function PrismeShield(options = {}) {
             // Serve the Gateway UI natively for HTML requests
             return res.sendFile('gateway.html', { root: path.join(__dirname, 'views') });
         }
-        
+
+        // Réhydrater la session vivante depuis le JWT durable. Après un redémarrage du
+        // store RAM, la session opaque (nx_sess) est neuve (reality 'normal' par défaut),
+        // mais le JWT a survécu : on y recopie la réalité, le seed de watermark et le
+        // statut validé pour que la couche de service réfracte selon la décision PRISE
+        // À LA GATE — pas selon un défaut. C'est ce qui rend la réalité durable.
+        if (req.visitor) {
+            req.visitor.humanValidated = true;
+            if (jwtResult.data.reality)     req.visitor.prisme.reality     = jwtResult.data.reality;
+            if (jwtResult.data.sessionSeed) req.visitor.prisme.sessionSeed = jwtResult.data.sessionSeed;
+            req.visitor.prisme.updatedAt = Date.now();
+
+            // Défense en profondeur : une session dont la réalité est 'blocked' est refusée.
+            if (req.visitor.prisme.reality === 'blocked') {
+                return res.status(403).json({ error: 'access_restricted' });
+            }
+        }
+
         // Pass if verified
         next();
     });

@@ -16,9 +16,13 @@ const getSuspicion = (req) => {
     return 0.5;
 };
 
-// Seed interne de session — opaque, jamais exposé tel quel au client
+// Seed interne de session — opaque, jamais exposé tel quel au client.
+// Priorité au seed DURABLE réhydraté depuis le JWT (stable après un redémarrage du
+// store RAM) pour que le watermark reste traçable dans le temps ; sinon le secret de
+// la session vivante ; sinon un repli anonyme par IP.
 const getSessionSeed = (req) => {
-    if (req.visitor?.internalSeed) return req.visitor.internalSeed;
+    if (req.visitor?.prisme?.sessionSeed) return req.visitor.prisme.sessionSeed;
+    if (req.visitor?.internalSeed)        return req.visitor.internalSeed;
     return 'anon-' + (req.ip || 'unknown');
 };
 

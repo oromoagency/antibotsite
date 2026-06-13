@@ -11,10 +11,14 @@ const config = require('../config');
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 2; // 2 heures
 
-// Crée un token AES-256 contenant ip, empreinte, trustScore, suspicion et sessionSeed.
+// Crée un token AES-256 contenant ip, empreinte, trustScore, suspicion, sessionSeed et reality.
 // suspicion   : scalaire [0.0, 1.0] — source de vérité pour la réfraction (prism/suspicion.js)
 // sessionSeed : empreinte cryptographique de la session — source de vérité pour le watermark
-const createToken = (ip, fingerprint, trustScore, suspicion, sessionSeed) => {
+// reality     : réalité décidée par l'orchestrateur causal à la gate (normal/watermarked/
+//               decoy/observed). PERSISTÉE ici pour survivre au redémarrage du store RAM :
+//               après un restart Render, le Shield la réhydrate dans la session vivante,
+//               donc la couche de service continue de réfracter selon la décision d'origine.
+const createToken = (ip, fingerprint, trustScore, suspicion, sessionSeed, reality) => {
     const tokenData = {
         ip,
         exp:             Date.now() + SESSION_DURATION_MS,
@@ -23,6 +27,7 @@ const createToken = (ip, fingerprint, trustScore, suspicion, sessionSeed) => {
         // Architecture Prisme — persistés dans le cookie :
         suspicion:   typeof suspicion === 'number'   ? suspicion   : 0.5,
         sessionSeed: typeof sessionSeed === 'string' ? sessionSeed : 'anonymous',
+        reality:     typeof reality === 'string'     ? reality     : 'normal',
     };
     return crypto.AES.encrypt(JSON.stringify(tokenData), config.SECRET_KEY).toString();
 };
