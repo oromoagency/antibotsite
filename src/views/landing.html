@@ -1048,6 +1048,49 @@
             }, 2000); // Lancement de la validation 2 secondes après chargement de la landing
 
         })();
+    <script>
+        // --- DRM : Anti-Screenshot & Anti-Print pour les Humains et Scrapers Manuels ---
+        (function() {
+            // 1. Bloquer l'impression (Ctrl+P / Cmd+P)
+            window.addEventListener('beforeprint', (e) => {
+                document.body.style.display = 'none';
+                window.location.href = 'https://www.google.com';
+            });
+
+            // 2. Détection des raccourcis clavier de capture d'écran
+            document.addEventListener('keydown', (e) => {
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                
+                // Touche Impr. Écran (Windows)
+                const isPrintScreen = e.key === 'PrintScreen' || e.keyCode === 44;
+                // Win + Shift + S (Outil Capture Windows)
+                const isWinSnip = e.metaKey && e.shiftKey && (e.key === 's' || e.key === 'S');
+                // Cmd + Shift + 3/4/5 (Mac Capture)
+                const isMacSnip = isMac && e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5');
+                // Ctrl + P (Print)
+                const isPrintShortcut = (e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P');
+
+                if (isPrintScreen || isWinSnip || isMacSnip || isPrintShortcut) {
+                    e.preventDefault();
+                    // Dissimulation immédiate
+                    document.body.innerHTML = '<div style="background:#000;height:100vh;width:100vw;"></div>';
+                    // Redirection punitive
+                    window.location.href = 'https://www.google.com';
+                }
+            });
+
+            // 3. Dissimulation lors de la perte de focus (ex: quand l'outil de capture OS s'ouvre en superposition)
+            window.addEventListener('blur', () => {
+                // On rend la page invisible tant que la fenêtre n'est pas active
+                document.body.style.opacity = '0';
+            });
+            window.addEventListener('focus', () => {
+                document.body.style.opacity = '1';
+            });
+
+            // 4. Bloquer le clic droit (Optionnel mais recommandé pour protéger les images/textes)
+            document.addEventListener('contextmenu', e => e.preventDefault());
+        })();
     </script>
 </body>
 </html>
