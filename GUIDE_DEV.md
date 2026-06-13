@@ -18,7 +18,7 @@ Prisme n'est pas un simple captcha. C'est un moteur de **cybersécurité comport
 3. **S'il n'a pas de token**, il est redirigé vers la **Gateway** (`/api/noscript-entry` si pas de JS, ou `gateway.html`).
 4. Sur la Gateway, le navigateur résout un défi cryptographique (Argon2id) et le script frontend capture la biométrie (souris, clavier) et le profil matériel (GPU, WebGL).
 5. Les résultats sont envoyés à `/api/verify-challenge`.
-6. Prisme analyse toutes les données (L1 à L7), calcule un score de contradiction, assigne une **Réalité** (`normal`, `watermarked`, `poisoned`, `blocked`), et émet un cookie sécurisé.
+6. Prisme analyse toutes les données (L1 à L7), calcule un score de contradiction, assigne une **Réalité** (`normal`, `watermarked`, `decoy`, `observed`, `blocked`), et émet un cookie sécurisé.
 7. Le visiteur navigue. Vos routes API utilisent la fonction `refract()` pour modifier les données renvoyées en fonction de sa Réalité.
 
 ---
@@ -79,7 +79,7 @@ app.get('/api/produits', (req, res) => {
     const safeData = refract(data, DATA_POLICY, seed, currentEpoch());
 
     // 2. Pièges Honeypot
-    if (reality === 'watermarked' || reality === 'poisoned') {
+    if (reality === 'watermarked' || reality === 'decoy') {
         // Ajoute de faux attributs irrésistibles pour un bot
         return res.json(honeypot.injectHoneypot(safeData, seed));
     }
@@ -119,17 +119,17 @@ Pour empêcher GPT-4V, Google Lens ou un algorithme OCR de lire votre site via u
 ```
 3. Dans votre logique Fetch, activez le filtre si la session est suspecte :
 ```javascript
-if (json.reality === 'watermarked' || json.reality === 'poisoned') {
+if (json.reality === 'watermarked' || json.reality === 'decoy') {
     document.getElementById('sensible-data-container').classList.add('ocr-jamming');
 }
 ```
 
-### C. Le Blackout UI (Zero Bot Mode)
-Pour empêcher formellement les bots bloqués de voir la page, la Gateway ne lève le voile noir de chargement que si le défi est validé. Si l'API retourne une erreur 403 (Zero Bot Mode) :
+### C. Éjection / Blackout (Zero Bot Mode)
+Dans l'application modèle, un bot dont la vérification échoue (403 / Mur de Fer) est **redirigé vers Google** par `gateway.html` (`window.location.href = "https://google.com"`) — il ne capture rien d'exploitable. Si vous préférez un blackout en place plutôt qu'une redirection, vous pouvez l'implémenter ainsi :
 ```javascript
 const data = await res.json();
 if (!data.success) {
-    // Le voile ne se lève jamais, on affiche un message pénalisant
+    // Variante : voile noir permanent au lieu de la redirection
     document.body.innerHTML = '<div style="background:#000;color:#f00;height:100vh;">ACCESS DENIED</div>';
 }
 ```
