@@ -19,7 +19,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { 
             height: 100%; 
-            background: #0a0f1e; 
+            background: #060913; 
             font-family: 'Inter', sans-serif;
             display: flex;
             align-items: center;
@@ -27,82 +27,147 @@
             overflow: hidden;
             color: #f8fafc;
         }
+
+        /* Ambient background glow */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, rgba(37, 99, 235, 0.1) 40%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+            animation: pulseGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+        }
         
+        .gateway-wrapper {
+            position: relative;
+            padding: 1px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6), 0 0 20px rgba(124, 58, 237, 0.2);
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
         .gateway-container {
             position: relative;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 3rem 2rem;
+            background: rgba(10, 15, 30, 0.7);
+            border-radius: 19px;
+            padding: 3.5rem 2.5rem;
             text-align: center;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            max-width: 400px;
-            width: 90%;
-            animation: fadeIn 0.5s ease-out;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            max-width: 420px;
+            width: 90vw;
+            z-index: 1;
         }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(20px) scale(0.95); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
         
         .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #7c3aed, #2563eb);
-            -webkit-background-clip: text;
-            color: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(37, 99, 235, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.1);
             margin-bottom: 2rem;
+            box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.2);
         }
-        
-        .spinner-wrapper {
-            position: relative;
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 1.5rem;
+
+        .logo svg {
+            width: 32px;
+            height: 32px;
+            fill: url(#logoGradient);
+            animation: pulseIcon 2s ease-in-out infinite;
         }
-        
-        .spinner {
-            width: 100%;
-            height: 100%;
-            border: 3px solid rgba(255,255,255,0.05);
-            border-top-color: #7c3aed;
-            border-radius: 50%;
-            animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+
+        @keyframes pulseIcon {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(124, 58, 237, 0.5)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.8)); }
         }
-        
-        @keyframes spin { to { transform: rotate(360deg); } }
         
         .title {
-            font-size: 1.125rem;
-            font-weight: 500;
+            font-size: 1.25rem;
+            font-weight: 600;
             margin-bottom: 0.5rem;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
         .subtitle {
             font-size: 0.875rem;
             color: #94a3b8;
-            line-height: 1.5;
+            line-height: 1.6;
+            margin-bottom: 2rem;
         }
 
         ._t { position: absolute; left: -9999px; top: -9999px; }
         
-        /* Progress bar logic from old script */
+        .progress-track {
+            position: relative;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
         #_p {
-            position: absolute; bottom: 0; left: 0; height: 3px;
-            background: linear-gradient(90deg, #7c3aed, #2563eb);
-            width: 0%; transition: width 0.4s ease; border-radius: 0 0 16px 16px;
+            position: absolute; 
+            top: 0; left: 0; height: 100%;
+            background: linear-gradient(90deg, #7c3aed, #2563eb, #06b6d4);
+            background-size: 200% 100%;
+            width: 0%; 
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            border-radius: 4px;
+            animation: gradientMove 2s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
         }
     </style>
 </head>
 <body>
 
-<div class="gateway-container">
-    <div class="spinner-wrapper">
-        <div class="spinner"></div>
+<svg width="0" height="0">
+    <defs>
+        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7c3aed" />
+            <stop offset="100%" stop-color="#2563eb" />
+        </linearGradient>
+    </defs>
+</svg>
+
+<div class="gateway-wrapper">
+    <div class="gateway-container">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logoGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <div class="title">Vérification de sécurité</div>
+        <div class="subtitle">Analyse de l'intégrité de la session en cours. Veuillez patienter un instant.</div>
+        <div class="progress-track">
+            <div id="_p"></div>
+        </div>
     </div>
-    <div class="title">Vérification en cours…</div>
-    <div class="subtitle">Veuillez patienter.</div>
-    <div id="_p"></div>
 </div>
 
 <!-- Piège 1 : LLM Prompt Injection -->

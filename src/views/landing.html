@@ -127,13 +127,13 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
         :root {
-            --bg-color: #0a0f1e;
+            --bg-color: #060913;
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --accent-start: #7c3aed;
             --accent-end: #2563eb;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --card-border: rgba(255, 255, 255, 0.1);
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -328,16 +328,36 @@
             transition: width 0.8s ease, background 0.8s ease;
         }
 
+        /* ── Anti-OCR Jamming Filter ── */
+        .ocr-jamming {
+            filter: url(#ocr-scramble);
+            position: relative;
+        }
+        .ocr-jamming::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px);
+            pointer-events: none;
+            mix-blend-mode: overlay;
+        }
+
         }
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 2rem;
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s;
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .card:hover { transform: translateY(-5px); border-color: rgba(124, 58, 237, 0.5); }
+        .card:hover { 
+            transform: translateY(-8px); 
+            border-color: rgba(124, 58, 237, 0.4); 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(124, 58, 237, 0.2);
+        }
         .card h3 { font-size: 1.25rem; margin-bottom: 1rem; }
         .card p { color: var(--text-secondary); font-size: 0.95rem; }
 
@@ -414,6 +434,16 @@
     </style>
 </head>
 <body>
+    
+    <!-- Filtre Anti-OCR SVG -->
+    <svg width="0" height="0" style="position:absolute;z-index:-1;">
+        <defs>
+            <filter id="ocr-scramble">
+                <feTurbulence type="turbulence" baseFrequency="0.25" numOctaves="1" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
 
     <!-- Écran opaque anti-screenshot : masque le contenu au chargement.
          Les bots screenshot capturent immédiatement → ils voient un fond noir.
@@ -738,6 +768,15 @@
 
                 // Tableau de données réfractées
                 const tbody = document.getElementById('prism-table-body');
+                const tableContainer = tbody.closest('.prism-table');
+                
+                // Activer le Brouillage OCR si la réalité est modifiée
+                if (demo.reality === 'watermarked' || demo.reality === 'poisoned') {
+                    tableContainer.classList.add('ocr-jamming');
+                } else {
+                    tableContainer.classList.remove('ocr-jamming');
+                }
+
                 tbody.innerHTML = '';
                 for (const row of demo.data) {
                     tbody.innerHTML += `
