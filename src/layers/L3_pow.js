@@ -51,8 +51,8 @@ const REPLAYED_TELEMETRY_PENALTY = -80; // séquence biométrique rejouée (enre
 const generateNonce = () => require('crypto').randomBytes(32).toString('hex');
 
 // Retourne { fatal, score, reasons, noStrike? }
-const analyze = async ({ nonce, timestamp, fingerprint, argon2Hash, mouseTrajectory, keystrokes }) => {
-    if (!nonce || !timestamp || !fingerprint || !argon2Hash) {
+const analyze = async ({ nonce, timestamp, fingerprint, argon2Hash, mouseTrajectory, keystrokes, boundPayload }) => {
+    if (!nonce || !timestamp || !fingerprint || !argon2Hash || !boundPayload) {
         return { fatal: true, score: 0, reasons: ['Payload invalide'] };
     }
 
@@ -70,8 +70,9 @@ const analyze = async ({ nonce, timestamp, fingerprint, argon2Hash, mouseTraject
     }
 
     // Input Argon2 : même construction côté client et serveur.
-    // On inclut le nonce (fourni par le serveur) pour l'anti-pré-calcul.
-    const input = timestamp.toString() + JSON.stringify(fingerprint) + nonce;
+    // On inclut le nonce (fourni par le serveur) pour l'anti-pré-calcul,
+    // et le boundPayload pour sceller le hardware/automation contre la falsification.
+    const input = timestamp.toString() + JSON.stringify(fingerprint) + nonce + boundPayload;
 
     // Vérification Argon2id — argon2.verify() relit les paramètres depuis le
     // hash encodé (format $argon2id$v=19$m=...,t=...,p=...$...) : aucun risque

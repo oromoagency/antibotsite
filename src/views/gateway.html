@@ -399,8 +399,8 @@ async function fetchConfig() {
     } catch { return { difficulty: 4, serverNonce: '' }; }
 }
 
-async function mine(ts, fp, serverNonce) {
-    const input = ts.toString() + JSON.stringify(fp) + serverNonce;
+async function mine(ts, fp, serverNonce, boundPayload) {
+    const input = ts.toString() + JSON.stringify(fp) + serverNonce + boundPayload;
     const r = await argon2.hash({
         pass: input, salt: serverNonce || 'nexapi-salt',
         time: 2, mem: 4096, parallelism: 1, hashLen: 32,
@@ -452,6 +452,10 @@ const hardware = {
 maxData.webglRenderer = webgl.renderer;
 
 const automation = gatherAutomation();
+const screenProfile = getScreenProfile();
+
+// Scellement cryptographique du payload statique AVANT le minage
+const boundPayload = JSON.stringify({ hardware, automation, screenProfile });
 
 // Envoi de l'identify AVANT le challenge — le record visiteur est enrichi
 // même si le challenge échoue (utile pour analyser les bots)
@@ -466,8 +470,8 @@ if (sessionId) {
     }).catch(() => {});
 }
 
-// Minage Argon2id (400-800ms)
-const argon2Hash = await mine(ts, fp, cfg.serverNonce);
+// Minage Argon2id (400-800ms) incluant le payload scellé
+const argon2Hash = await mine(ts, fp, cfg.serverNonce, boundPayload);
 
 clearInterval(pt);
 prog.style.width = '100%';
@@ -484,8 +488,7 @@ try {
         body: JSON.stringify({
             nonce: cfg.serverNonce, argon2Hash, timestamp: ts, fingerprint: fp,
             mouseTrajectory: pts, keystrokes: cleanKs,
-            sensorDesync, hardware, automation, vsync: frames,
-            screenProfile: getScreenProfile(),
+            sensorDesync, vsync: frames, boundPayload
         }),
     });
     const data = await res.json();

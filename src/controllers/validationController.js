@@ -65,10 +65,21 @@ exports.verifyChallenge = async (req, res) => {
         nonce, timestamp, fingerprint,
         argon2Hash,
         sensorDesync,
-        hardware, automation, vsync,
+        vsync,
         mouseTrajectory, keystrokes,
-        screenProfile,
+        boundPayload
     } = req.body;
+
+    let hardware, automation, screenProfile;
+    try {
+        const boundData = JSON.parse(boundPayload);
+        hardware = boundData.hardware;
+        automation = boundData.automation;
+        screenProfile = boundData.screenProfile;
+    } catch (e) {
+        recordOutcome(ip, 'fatal', 0, 0, ['Payload scellé malformé'], req.headers['user-agent']);
+        return res.status(400).json({ success: false, message: 'Requête invalide.' });
+    }
 
     // --- L3 : Proof of Work Argon2id & anti-rejeu (peut être fatal) ---
     // Vérifie que le nonce serveur était bien en attente (anti-forgery).
@@ -79,7 +90,7 @@ exports.verifyChallenge = async (req, res) => {
     }
     pendingNonces.delete(nonce); // consommé une seule fois
 
-    const pow = await L3_pow.analyze({ nonce, timestamp, fingerprint, argon2Hash, mouseTrajectory, keystrokes });
+    const pow = await L3_pow.analyze({ nonce, timestamp, fingerprint, argon2Hash, mouseTrajectory, keystrokes, boundPayload });
     if (pow.fatal) {
         const malformed = pow.reasons[0] === 'Payload invalide';
         // Payload malformé = client cassé possible → pas de ban. PoW faux/rejeu = automatisation.
