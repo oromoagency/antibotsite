@@ -178,7 +178,10 @@ exports.verifyChallenge = async (req, res) => {
     };
 
     if (sensorDesync && sensorDesync.desyncMs) addFact('sensor_desync', { desyncMs: sensorDesync.desyncMs });
-    if (autoRaw.score < 0) addFact('automation_anomaly', { reasons: autoRaw.reasons });
+    // automation_anomaly : seulement pour les signaux forts (webdriver, geckodriver, artefacts CDP).
+    // vsyncAbsent (-20) et vsyncSynthetic (-15) = signaux faibles — Firefox privacy mode,
+    // throttling réseau, RFP activé → faux positifs fréquents. Seuil : ≤ -40.
+    if (autoRaw.score <= -40) addFact('automation_anomaly', { reasons: autoRaw.reasons });
     if (hwRaw.score < 0) addFact('hardware_anomaly', { reasons: hwRaw.reasons });
     if (bio.score < 0) addFact('biometric_anomaly', { reasons: bio.reasons });
 
