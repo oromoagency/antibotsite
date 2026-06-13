@@ -42,6 +42,7 @@ const LAYER_ORDER = ['L1-Réseau', 'L2-Accès', 'L3-PoW', 'L4-Hardware', 'L5-Aut
 
 const notifySuspect = async (visitor) => {
     if (!visitor) return;
+    if (visitor.decision !== 'allowed') return;
 
     const emoji = visitor.decision === 'blocked' ? '🚫'
                 : visitor.decision === 'suspect'  ? '⚠️' : 'ℹ️';

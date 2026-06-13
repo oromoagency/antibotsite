@@ -66,7 +66,7 @@ exports.getFullReport = (req, res) => {
     posture.evaluate();
 
     const allVisitors  = visitors.getAllVisitors();
-    const recentLogs   = eventLog.getRecent(2000);
+    const recentLogs   = eventLog.getRecent();
     const w5           = events.statsWindow(5 * 60 * 1000);
     const w60          = events.statsWindow(60 * 60 * 1000);
     const honey        = getBlacklistStats();

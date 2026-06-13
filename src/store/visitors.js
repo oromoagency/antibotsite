@@ -5,7 +5,7 @@
 const crypto = require('crypto');
 
 const visitors = new Map();
-const MAX_VISITORS = 10000;
+const MAX_VISITORS = 1000000;
 
 // --- Parsing User-Agent ---
 const parseUA = (ua = '') => {

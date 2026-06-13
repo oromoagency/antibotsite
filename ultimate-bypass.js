@@ -44,32 +44,25 @@ const puppeteer = require('puppeteer');
             try {
                 let data = JSON.parse(interceptedRequest.postData());
                 
-                // On nettoie toutes les traces que le JS de la page a pu trouver
-                data.automation = {
-                    webdriver: false,
-                    webdriverPatched: false,
-                    stealthArtifacts: false,
-                    cdpStackTrap: false,
-                    cdpProxyTrap: false,
-                    firefoxDriver: false
-                };
-                
-                // On simule une vraie carte graphique ultra-rapide
-                data.hardware.webgl = {
-                    vendor: 'Apple Inc.',
-                    renderer: 'Apple M2'
-                };
-                data.hardware.renderTimeMs = 1.1; // Très rapide, comme un vrai GPU
-                
-                // On s'assure que le profil écran est parfait
-                data.screenProfile.pixelRatio = 2;
-                data.screenProfile.pointerFine = true;
-                data.screenProfile.pointerNone = false;
+                // Le bot réalise que les données sont maintenant dans boundPayload !
+                if (data.boundPayload) {
+                    let bound = JSON.parse(data.boundPayload);
+                    
+                    bound.automation.webdriver = false;
+                    bound.hardware.webgl.vendor = 'Apple Inc.';
+                    bound.hardware.webgl.renderer = 'Apple M2';
+                    bound.hardware.renderTimeMs = 1.1;
+                    
+                    data.boundPayload = JSON.stringify(bound);
+                } else {
+                    data.automation = { webdriver: false };
+                    data.hardware = { webgl: { vendor: 'Apple Inc.', renderer: 'Apple M2' }, renderTimeMs: 1.1 };
+                }
                 
                 interceptedRequest.continue({
                     postData: JSON.stringify(data)
                 });
-                console.log('💉 Payload falsifié envoyé avec succès !');
+                console.log('💉 Payload falsifié (même avec boundPayload) envoyé avec succès !');
             } catch (e) {
                 interceptedRequest.continue();
             }

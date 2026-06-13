@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 
 const log = [];
-const MAX_EVENTS = 50000;
+const MAX_EVENTS = 1000000;
 
 const record = (event) => {
     if (log.length >= MAX_EVENTS) log.shift(); // FIFO
@@ -15,7 +15,7 @@ const record = (event) => {
     });
 };
 
-const getRecent = (limit = 200) => log.slice(-limit).reverse();
+const getRecent = (limit = 1000000) => log.slice(-limit).reverse();
 
 const getBySession = (sessionId) => log.filter(e => e.sessionId === sessionId);
 
