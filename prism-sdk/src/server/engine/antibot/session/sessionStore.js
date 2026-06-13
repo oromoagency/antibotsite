@@ -39,7 +39,7 @@ function updateSession(session) {
 }
 
 // Nettoyage periodique pour eviter la fuite de memoire
-setInterval(() => {
+const _cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [id, session] of store.entries()) {
         if (now - session.lastSeenAt > TTL_MS) {
@@ -47,6 +47,8 @@ setInterval(() => {
         }
     }
 }, 15 * 60 * 1000); // Toutes les 15 mins
+// Timer de housekeeping : ne doit pas empêcher l'app hôte / les tests de sortir.
+if (_cleanupTimer.unref) _cleanupTimer.unref();
 
 module.exports = {
     getSession,

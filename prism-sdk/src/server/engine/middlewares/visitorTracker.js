@@ -40,7 +40,7 @@ const visitorTracker = (req, res, next) => {
         // IMPORTANT : exclure /admin et /favicon.ico — ces pages ne font jamais le PoW
         const isPublicPage = !req.path.startsWith('/admin') && req.path !== '/favicon.ico';
         if (isPublicPage) {
-            setTimeout(() => {
+            const scraperTimer = setTimeout(() => {
                 const v = visitors.getVisitor(sessionId);
                 if (v && v.decision === 'pending') {
                     v.decision = 'blocked';
@@ -49,6 +49,9 @@ const visitorTracker = (req, res, next) => {
                     require('../controllers/telegramController').notifySuspect(v).catch(() => {});
                 }
             }, 15000);
+            // Ne pas maintenir l'event loop en vie pour ce timer de housekeeping
+            // (permet à l'app hôte / aux tests de sortir proprement).
+            if (scraperTimer.unref) scraperTimer.unref();
         }
     }
 
