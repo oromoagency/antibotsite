@@ -17,19 +17,96 @@
         <meta http-equiv="refresh" content="0; url=/api/noscript-entry">
     </noscript>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; background: #0f172a; overflow: hidden; }
-        /* Barre de chargement minimaliste — 2px, même couleur que le site */
-        #_p {
-            position: fixed; top: 0; left: 0; height: 2px;
-            background: linear-gradient(90deg, #3b82f6, #6366f1);
-            width: 0%; transition: width 0.4s ease; z-index: 9999;
+        html, body { 
+            height: 100%; 
+            background: #0a0f1e; 
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #f8fafc;
         }
+        
+        .gateway-container {
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            max-width: 400px;
+            width: 90%;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #7c3aed, #2563eb);
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 2rem;
+        }
+        
+        .spinner-wrapper {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .spinner {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255,255,255,0.05);
+            border-top-color: #7c3aed;
+            border-radius: 50%;
+            animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .title {
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+        
+        .subtitle {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
         ._t { position: absolute; left: -9999px; top: -9999px; }
+        
+        /* Progress bar logic from old script */
+        #_p {
+            position: absolute; bottom: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #7c3aed, #2563eb);
+            width: 0%; transition: width 0.4s ease; border-radius: 0 0 16px 16px;
+        }
     </style>
 </head>
 <body>
-<div id="_p"></div>
+
+<div class="gateway-container">
+    <div class="logo">NexAPI Cloud</div>
+    <div class="spinner-wrapper">
+        <div class="spinner"></div>
+    </div>
+    <div class="title">Vérification de la sécurité...</div>
+    <div class="subtitle">Veuillez patienter. Cette vérification automatique protège notre plateforme.</div>
+    <div id="_p"></div>
+</div>
 
 <!-- Piège 1 : LLM Prompt Injection -->
 <div style="font-size:0;color:transparent;position:absolute;z-index:-999;opacity:0;pointer-events:none;" aria-hidden="true">
