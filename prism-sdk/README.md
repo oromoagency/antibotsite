@@ -102,12 +102,12 @@ Le serveur démarrera sur `http://localhost:3000`. Vous verrez dans la console l
 3. Bougez votre souris : Prisme collecte l'entropie, calcule le Proof-of-Work (votre CPU chauffe un instant) et valide votre session.
 4. Vous accédez au "vrai" site de démo de NexAPI Cloud.
 
-### 3. Tester en tant que Bot (Script de Test)
-Nous avons inclus un script simulant 20 attaques concurrentes tentant de contourner le système :
+### 3. Tester en tant que Bot (Red Team)
+Le dépôt inclut une red team structurée (Puppeteer + profils d'évasion) sous `redteam/` :
 ```bash
-node scratch/test-20-bots.js
+node redteam/run.js
 ```
-**Résultat attendu :** Les bots échouent au PoW ou envoient de mauvaises empreintes. Le serveur ne tombe pas, les bots sont empoisonnés et leurs requêtes sont cataloguées dans les logs d'attaque.
+**Résultat attendu :** les bots échouent au PoW ou envoient de mauvaises empreintes. Le serveur tient, les bots sont empoisonnés et leurs requêtes sont cataloguées dans les logs d'attaque.
 
 ### 4. Tester via cURL
 Tentez d'accéder à l'API protégée sans session validée :

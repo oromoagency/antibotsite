@@ -1,5 +1,18 @@
 # Audit d'alignement NexAPI Antibot
 
+> ⚠️ **DOCUMENT HISTORIQUE (snapshot du 2026-06-12) — la plupart des findings sont RÉSOLUS.**
+> Cet audit décrit l'état AVANT l'extraction du SDK et le câblage du moteur causal.
+> Les chemins cités (`src/layers/*`, `src/antibot/*`) ont migré dans `prism-sdk/`.
+> Corrections appliquées depuis :
+> - ✅ Gate humain actif (`PrismeShield` global) — pages protégées.
+> - ✅ `unknown` ne devient plus `normal` (orchestrateur : `gate_required`).
+> - ✅ La réalité décidée à la gate est PERSISTÉE et circule jusqu'au serving.
+> - ✅ Hack `SECRET_KEY += '_mur_de_fer_test_1'` supprimé.
+> - ✅ Session unifiée : `nx_sess` (sécurité) + JWT durable, `_nx_session` = observabilité.
+> - ✅ `npm test` réel (unit + intégration, 48/48) ; tests `phase*` morts supprimés.
+> Conservé comme trace de la démarche. Pour l'architecture courante, voir `README.md`
+> et `docs/architecture_prisme_causal.md`.
+
 Date: 2026-06-12
 
 Depot audite:
