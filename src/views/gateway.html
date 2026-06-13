@@ -220,6 +220,40 @@ function getWebGL() {
     } catch { return { vendor: 'WEBGL_ERROR', renderer: 'WEBGL_ERROR' }; }
 }
 
+// Mesure le temps de rendu GPU réel : un vrai GPU < 5ms, SwiftShader > 50ms.
+// gl.finish() est synchrone — il force l'attente de la complétion GPU.
+// Le shader (64 sin+cos par pixel × 65 536 pixels) est trivial pour un GPU matériel
+// (parallélisé en millisecondes) mais lourd pour un renderer logiciel (séquentiel).
+function measureWebGLRenderTime() {
+    try {
+        const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+        const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+        if (!gl) return -1;
+        function sh(type, src) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src); gl.compileShader(s); return s;
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER,
+            'attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}'));
+        gl.attachShader(prog, sh(gl.FRAGMENT_SHADER,
+            'precision highp float;void main(){vec2 uv=gl_FragCoord.xy/256.0;float v=0.0;for(int i=0;i<64;i++){v+=sin(uv.x*float(i))*cos(uv.y*float(i));}gl_FragColor=vec4(v/64.0,0,0,1);}'));
+        gl.linkProgram(prog); gl.useProgram(prog);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, 'a');
+        gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        // Warmup (shader JIT compile)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.finish();
+        // Mesure sur 5 draws
+        const t0 = performance.now();
+        for (let i = 0; i < 5; i++) gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.finish();
+        return parseFloat(((performance.now() - t0) / 5).toFixed(2));
+    } catch { return -1; }
+}
+
 function getAudio() {
     return new Promise(res => {
         try {
@@ -409,10 +443,11 @@ const [maxData, cfg] = await Promise.all([
 // Hardware couche 4 (audio async)
 const webgl = getWebGL();
 const hardware = {
-    canvas: getCanvas(),
+    canvas:       getCanvas(),
     webgl,
-    audio:  await getAudio(),
-    webgpu: typeof navigator.gpu !== 'undefined',
+    renderTimeMs: measureWebGLRenderTime(),
+    audio:        await getAudio(),
+    webgpu:       typeof navigator.gpu !== 'undefined',
 };
 maxData.webglRenderer = webgl.renderer;
 

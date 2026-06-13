@@ -128,12 +128,13 @@ exports.verifyChallenge = async (req, res) => {
 
     // --- L4 : Empreinte matérielle ---
     const hwRaw = L4_hardware.analyze({
-        webgl: hardware && hardware.webgl,
-        canvas: hardware && hardware.canvas,
-        audio: hardware && hardware.audio,
-        webgpu: hardware ? hardware.webgpu : undefined,
+        webgl:        hardware && hardware.webgl,
+        canvas:       hardware && hardware.canvas,
+        audio:        hardware && hardware.audio,
+        webgpu:       hardware ? hardware.webgpu : undefined,
+        renderTimeMs: (hardware && typeof hardware.renderTimeMs === 'number') ? hardware.renderTimeMs : -1,
         sensorDesync, fingerprint,
-        battery: visitor ? visitor.battery : null,
+        battery:      visitor ? visitor.battery : null,
         screenProfile,
     });
 

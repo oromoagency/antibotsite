@@ -77,11 +77,19 @@ module.exports = {
         // Une valeur > 1.0 (ex. 100 → 10000%) = bot qui envoie le mauvais format.
         // Jamais observé sur un vrai navigateur dans nos données de trafic.
         batterySpoof:    -30,
-        // Écran physique réel — détection de la présence d'un vrai périphérique d'affichage.
+        // Écran physique & cohérence hardware
         // pointer:none = aucun dispositif de pointage → headless (presque impossible légitimement).
         // UA mobile + pointer:fine ou maxTouchPoints=0 = UA spoofé (mobile simulé sur desktop).
         screenPointerNone:    -40,
         screenMobileMismatch: -40,
+        // UA mobile + devicePixelRatio ≤ 1.0 = impossible sur vrai téléphone (min réel ≈ 1.5).
+        mobileUaDprLow:       -35,
+        // GPU family incompatible avec l'OS déclaré dans le UA (Apple GPU sur UA Windows, etc.).
+        // Très fiable : WebGL expose le chipset réel, difficile à spoofer sans interception JS.
+        gpuOsMismatch:        -50,
+        // Temps de rendu WebGL > seuil = renderer logiciel (SwiftShader/Mesa) masqué.
+        // Seuil conservateur 25ms/draw : vrai GPU < 2ms, SwiftShader > 50ms sur shader non trivial.
+        webglRenderSlow:      -30,
     },
 
     // ── L5 · Automation / CDP ──────────────────────────────────────────────────

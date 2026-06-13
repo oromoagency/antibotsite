@@ -43,6 +43,9 @@ const WEBGPU_ABSENT_PENALTY      = _T.webgpuAbsent;
 const BATTERY_SPOOF_PENALTY      = _T.batterySpoof;
 const SCREEN_POINTER_NONE        = _T.screenPointerNone;
 const SCREEN_MOBILE_MISMATCH     = _T.screenMobileMismatch;
+const MOBILE_UA_DPR_LOW          = _T.mobileUaDprLow;
+const GPU_OS_MISMATCH            = _T.gpuOsMismatch;
+const WEBGL_RENDER_SLOW          = _T.webglRenderSlow;
 
 // Vérifie les signaux liés à la présence d'un écran physique réel.
 // Ne pénalise PAS les navigateurs sans données (screenProfile absent = client ancien).
@@ -51,7 +54,7 @@ const analyzeScreen = (screenProfile, fingerprint) => {
     const reasons = [];
     let score = 0;
 
-    const { pointerFine, pointerCoarse, pointerNone, maxTouchPoints, rafMean, rafSamples } = screenProfile;
+    const { pointerFine, pointerCoarse, pointerNone, maxTouchPoints, pixelRatio, rafMean, rafSamples } = screenProfile;
     const ua = (fingerprint && fingerprint.userAgent) ? String(fingerprint.userAgent) : '';
     const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 
@@ -76,17 +79,26 @@ const analyzeScreen = (screenProfile, fingerprint) => {
         }
     }
 
+    // Signal 3 : UA mobile + devicePixelRatio ≤ 1.0 = headless desktop.
+    // Le moins cher des vrais appareils Android/iOS a DPR ≥ 1.5.
+    // Un serveur headless qui simule un UA mobile garde son DPR par défaut (1.0).
+    if (isMobileUA && typeof pixelRatio === 'number' && pixelRatio <= 1.0) {
+        score += MOBILE_UA_DPR_LOW;
+        reasons.push(`UA mobile + devicePixelRatio=${pixelRatio} — impossible sur vrai appareil mobile`);
+    }
+
     return { score, reasons };
 };
 
 // Retourne { score, reasons }
-const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, battery, screenProfile }) => {
+const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, battery, screenProfile, renderTimeMs }) => {
     let evidence = 0; // preuves fortes (non plafonnées)
     let absence = 0;  // signaux absents (plafonnés)
     const reasons = [];
 
     // --- WebGL : modèle du GPU ---
-    if (!webgl || webgl.renderer === 'NO_WEBGL' || webgl.renderer === 'WEBGL_ERROR') {
+    const hasWebGL = webgl && webgl.renderer !== 'NO_WEBGL' && webgl.renderer !== 'WEBGL_ERROR';
+    if (!hasWebGL) {
         absence += ABSENCE_PENALTIES.webgl;
         reasons.push('WebGL absent/désactivé (headless OU navigateur vie-privée)');
     } else {
@@ -100,6 +112,27 @@ const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, batt
             // s'empilait à l'absence et faisait tomber l'humain sous le seuil.
             absence += VDI_RENDERER_PENALTY;
             reasons.push(`Renderer logiciel type VDI/RDP (${webgl.renderer}) — environnement virtualisé`);
+        }
+
+        // --- Cohérence GPU / OS déclaré dans le UA ---
+        // Le chipset GPU est exposé par l'extension WEBGL_debug_renderer_info et reflète
+        // le matériel réel. Un bot peut spoofer le UA mais pas le renderer WebGL
+        // (requiert une interception JS active — rarement implémentée).
+        // Apple GPU  → exclusif aux appareils Apple (Mac, iPhone, iPad).
+        // Adreno     → chipset Qualcomm, exclusif à Android (Snapdragon SoCs).
+        // Mali       → chipset ARM, exclusif à Android et quelques SBCs Linux.
+        if (fingerprint && fingerprint.userAgent) {
+            const uaStr = String(fingerprint.userAgent);
+            if (renderer.includes('apple') && !/mac|iphone|ipad|ipod|ios/i.test(uaStr)) {
+                evidence += GPU_OS_MISMATCH;
+                reasons.push(`GPU Apple sur UA non-Apple — UA spoofé (${webgl.renderer})`);
+            } else if (renderer.includes('adreno') && !/android/i.test(uaStr)) {
+                evidence += GPU_OS_MISMATCH;
+                reasons.push(`GPU Adreno sur UA non-Android — UA spoofé (${webgl.renderer})`);
+            } else if (renderer.includes('mali') && !/android/i.test(uaStr)) {
+                evidence += GPU_OS_MISMATCH;
+                reasons.push(`GPU Mali sur UA non-Android — UA spoofé (${webgl.renderer})`);
+            }
         }
     }
 
@@ -150,6 +183,16 @@ const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, batt
     if (battery && typeof battery.level === 'number' && battery.level > 1.0) {
         evidence += BATTERY_SPOOF_PENALTY;
         reasons.push(`Batterie spoofée (${Math.round(battery.level * 100)}% — impossible, spec W3C = 0.0-1.0)`);
+    }
+
+    // --- Temps de rendu WebGL : renderer logiciel masqué ---
+    // Un vrai GPU (même intégré bas de gamme) rend ce shader en < 5ms.
+    // SwiftShader : 50-500ms (rendu logiciel séquentiel sur CPU).
+    // Seuil 25ms très conservateur : jamais atteint sur vrai matériel depuis 2012.
+    // renderTimeMs = -1 signifie erreur/absence de WebGL (déjà pénalisé ci-dessus).
+    if (typeof renderTimeMs === 'number' && renderTimeMs >= 25) {
+        evidence += WEBGL_RENDER_SLOW;
+        reasons.push(`Rendu WebGL lent (${renderTimeMs}ms/draw) — renderer logiciel probable malgré string spoofé`);
     }
 
     // --- Écran physique réel ---
