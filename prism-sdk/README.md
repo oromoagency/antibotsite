@@ -1,109 +1,112 @@
 # 🌈 Prisme SDK — Défense Anti-Scraping par l'Économie
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://badge.fury.io/js/prism-defense.svg)](https://badge.fury.io/js/prism-defense)
 
-Prisme n'est pas un pare-feu. Prisme n'est pas un captcha. **Prisme est une arme d'ingénierie offensive.** 
+Prisme n'est pas un pare-feu classique. Prisme n'est pas un énième Captcha. **Prisme est une arme d'ingénierie offensive.** 
 
 L'architecture Prisme part d'un constat simple : la détection binaire ("Est-ce un bot ou un humain ?") est obsolète. Les bots modernes simulent parfaitement les comportements humains, rendent le JavaScript, et utilisent des proxys résidentiels. Tenter de les bloquer génère des faux positifs inacceptables pour vos vrais clients.
 
-**Notre solution : Ne bloquez plus personne. Empoisonnez la donnée.**
+**Notre solution : Ne bloquez plus aveuglément. Empoisonnez la donnée.**
 
-Un humain regarde une interface visuelle. Un bot *doit* scraper la couche technique (JSON, DOM). Le SDK Prisme exploite cette unique différence irréductible pour tendre des pièges structurels et ruiner économiquement l'extraction de données.
+Le SDK Prisme offre **deux modes de fonctionnement** : un Bouclier L1-L7 complet "clés en main" (Le Gateway), ou un accès "à la carte" à son redoutable moteur de réfraction de données.
 
 ---
 
-## 🚀 Les 4 Piliers de l'Architecture
+## 🚀 Les Piliers de l'Architecture
 
 ### 1. Réfraction Déterministe (Watermark & Jitter)
-Au lieu de renvoyer la vérité absolue, le serveur "réfracte" la donnée selon une clé de session (`seed`). 
-- **Les données d'agrégation (ex: rang)** subissent un micro-bruit ("Jitter"). Le scraper qui fusionne 10 sessions corrompt sa moyenne.
-- **Les données cosmétiques (ex: descriptions)** utilisent des synonymes ("Watermark"). Si votre donnée fuite, vous pouvez identifier exactement la session source.
-- **Les données critiques (ex: prix)** restent exactes (`actionable`). L'humain n'est jamais impacté.
+Au lieu de renvoyer la vérité absolue, le serveur "réfracte" la donnée selon une clé de session. 
+- **Les données d'agrégation** subissent un micro-bruit ("Jitter"). Le scraper corrompt sa base de données statistique.
+- **Les données cosmétiques** utilisent des synonymes ("Watermark"). Si votre donnée fuite, vous pouvez identifier exactement la source.
 
-### 2. Le Honeypot Structurel (Détection Certaine)
-Le middleware injecte silencieusement des champs fantômes (ex: `__trap_api: "/api/stats"`) dans le JSON. Ces champs ne sont jamais affichés par l'UI. Si une session appelle ce lien, c'est **mathématiquement** un bot. La session est alors basculée en mode "Poison Total" sans jamais recevoir d'erreur 403 : le bot continue de télécharger des gigaoctets de fausses données en croyant que son script fonctionne.
+### 2. Le Honeypot Structurel
+Le middleware injecte silencieusement des liens fantômes dans le JSON (jamais affichés par l'UI). Si un script l'appelle, c'est **mathématiquement** un bot. Il est alors basculé en mode "Poison Total" sans erreur 403 : le bot télécharge des giga-octets de fausses données en croyant réussir.
 
-### 3. L'Entropie Comportementale
-Le SDK Client mesure silencieusement la loi de distribution Gamma de la souris et du scroll (Entropie de Shannon). Un bot simule des mouvements, mais rate la distribution mathématique humaine. Cette "chaleur" module le coût serveur.
-
-### 4. Révélation Progressive (Fragmentation)
-Les données "Joyaux" sont fragmentées. Le JSON contient la partie entière du prix, les CSS contiennent les centimes. L'assemblage n'existe que dans le navigateur humain via le SDK. Un bot doit simuler un moteur de rendu complet pour reconstituer la valeur.
+### 3. Gateway "Zero Bot" et Orchestrateur Causal (L1-L7)
+Une suite de couches (L1 Réseau, L2 Réputation, L3 Proof-of-Work cryptographique Argon2) qui garantit l'authenticité de chaque requête via un Token Session vérifié.
 
 ---
 
 ## 📦 Installation
 
+*(Le SDK est actuellement en version locale)*
+
 ```bash
-npm install prism-defense
+npm install ./prism-sdk
 ```
 
 ---
 
-## 🛠️ Utilisation Rapide
+## 🛠️ Usage : Deux Niveaux d'Intégration
 
-### 1. Côté Serveur (Express/Node.js)
+Prisme SDK s'adapte à votre architecture. Vous pouvez l'utiliser comme un pare-feu complet, ou seulement utiliser son algorithme de réfraction si vous possédez déjà un WAF.
 
-Intégrez le middleware pour réfracter les réponses et injecter le Honeypot.
+### Mode 1 : Intégration Complète (`PrismeShield`)
+*Idéal si vous voulez protéger l'ensemble de votre backend (API, Pages) avec le moteur Causal L1-L7, le challenge PoW et le Dashboard inclus.*
 
 ```javascript
 const express = require('express');
-const { prismMiddleware } = require('prism-defense/src/server');
+const { PrismeShield } = require('prism-sdk');
 
 const app = express();
 
-// Définissez votre politique de données
+// Déployer le bouclier en tête de votre application
+app.use(PrismeShield({
+    adminToken: process.env.ADMIN_TOKEN, // Accès au Dashboard d'observabilité
+    challengeDifficulty: 100000,         // Difficulté du Proof-of-Work
+    telegramBotToken: process.env.TG_BOT_TOKEN, // Alertes (Optionnel)
+    telegramChatId: process.env.TG_CHAT_ID,
+    zeroBotMode: true                    // Bloquer strictement les UAs de bots connus
+}));
+
+// Vos routes derrière le bouclier (nécessite une session validée)
+app.get('/api/secure-data', (req, res) => {
+    res.json({ secret: "Donnée protégée par l'Orchestrateur Causal" });
+});
+
+app.listen(3000);
+```
+
+### Mode 2 : Intégration "À la carte" (`prismMiddleware` / `refract`)
+*Idéal si un dev (L1-L6 propre à lui) veut uniquement intégrer la magie de Prisme à son antibot ou son site.*
+
+```javascript
+const express = require('express');
+const { prismMiddleware, honeypotTrapMiddleware } = require('prism-sdk');
+
+const app = express();
+
+// Politique de réfraction
 const policy = {
-    price: 'actionable',     // Exact
-    description: 'cosmetic', // Synonymes (traçabilité)
-    rank: 'aggregate'        // Bruit (destruction statistique)
+    price: 'actionable',     // Reste exact
+    description: 'cosmetic', // Modifié par des synonymes (Watermark)
+    rank: 'aggregate'        // Bruit mathématique (Jitter)
 };
 
-// Utilisez le middleware
+// 1. Attacher la route piège qui repère les bots
+app.use('/__internal/v2/stats', honeypotTrapMiddleware);
+
+// 2. Protéger l'API cible
 app.use('/api/products', prismMiddleware(policy));
 
 app.get('/api/products', (req, res) => {
-    // Renvoyez votre donnée pure. Le middleware s'occupe de la transformer.
+    // Renvoyez votre donnée pure. Le middleware s'occupe de la corrompre
+    // ou de l'empoisonner selon la session du visiteur.
     res.json([
         { id: 1, name: "Widget", price: 49.99, description: "Un objet robuste", rank: 5 }
     ]);
 });
 ```
 
-### 2. Le Piège (Honeypot)
-
-N'oubliez pas d'attacher la route piège qui blacklist les bots.
-
-```javascript
-const { honeypotTrapMiddleware } = require('prism-defense/src/server');
-
-// Cette route est injectée automatiquement dans le JSON généré par le middleware
-app.get('/api/__internal/v2/stats/*', honeypotTrapMiddleware);
-```
-
-### 3. Côté Client (React, Vue, Vanilla)
-
-Démarrez la collecte d'entropie sans bloquer le rendu.
-
-```javascript
-import { initPrismClient } from 'prism-defense/src/client';
-
-// Au chargement de l'application
-const prism = initPrismClient({
-    onEntropyUpdate: (score) => {
-        // Envoi silencieux au backend pour ajuster la chaleur
-        fetch('/api/beacon/entropy', { method: 'POST', body: JSON.stringify({ score }) });
-    }
-});
-```
-
 ---
 
-## 📖 Documentation Détaillée
+## 📊 Dashboard d'Observabilité Inclus
 
-Consultez le dossier `/docs` pour lire la philosophie complète et les diagrammes explicatifs :
-- [L'Architecture Prisme de base](docs/guide_architecture_prisme.md)
-- [Les concepts avancés (Honeypot, Entropie)](docs/prisme_avance.md)
+Si vous utilisez le mode `PrismeShield`, des routes d'administration sont exposées (protégées par `adminToken`) :
+- `GET /api/admin/stats` : Vue synthétique de la flotte.
+- `GET /api/admin/report` : Extraction complète de la télémétrie.
+- `GET /api/admin/visitors` : État causal de toutes les sessions.
+- `GET /api/admin/logs` : Historique des événements de sécurité.
 
 ---
 
@@ -111,10 +114,10 @@ Consultez le dossier `/docs` pour lire la philosophie complète et les diagramme
 
 | Action du Scraper | Résultat |
 |---|---|
-| Contourne le Captcha | Télécharge des données empoisonnées au Jitter. Sa Data Science s'effondre. |
-| Utilise 50 Proxys IP | Le Watermark unique le trahit juridiquement dès qu'il revend la donnée. |
-| Parse le JSON brutalement | Tombe dans le Honeypot Structurel. Reçoit un Poison Total de 100%. |
-| Lance Chrome Headless | Échoue à la vérification d'Entropie Gamma et subit un PoW ruinant son CPU Cloud. |
+| Contourne le Captcha/PoW | Télécharge des données empoisonnées au Jitter. Sa base de données perd toute fiabilité. |
+| Utilise 50 Proxys IP | Le Watermark unique dans le texte le trahit juridiquement dès qu'il revend la donnée. |
+| Parse le JSON brutalement | Tombe dans le Honeypot Structurel. Reçoit un Poison Total. |
+| Lance Chrome Headless | Échoue au test biométrique/entropie et subit un Proof-of-Work ruinant son CPU Cloud. |
 
 Le chasseur est devenu la proie.
 
