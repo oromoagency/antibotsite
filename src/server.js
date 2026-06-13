@@ -6,7 +6,6 @@ const path = require('path');
 const config = require('./config');
 
 const L1_network = require('./layers/L1_network');
-const L2_access  = require('./layers/L2_access');
 
 const apiRoutes = require('./routes/api');
 const webRoutes = require('./routes/web');
@@ -100,12 +99,9 @@ app.use(express.json({ limit: '128kb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Pipeline antibot : couche par couche
-// DÉSACTIVÉ TEMPORAIREMENT
-// app.use(L1_network.analyze);    // L1 — protocole
-// Protection antibot activée sur TOUTES les routes.
-// TEMPORAIREMENT DÉSACTIVÉE : Pour permettre le développement de l'Admin et de Prisma.
-// app.use(antibotMiddleware);  // L2 — barrière IP bannies (temporaire)
+// L1 — signaux réseau sur toutes les routes (lecture seule, ne bloque pas)
+// Dépose req.l1Signals { score, reasons, declarative } consommé par verifyChallenge.
+app.use(L1_network.analyze);
 
 app.use('/api', apiRoutes);
 app.use('/', webRoutes);

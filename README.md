@@ -1,189 +1,189 @@
 # Prisme Antibot
 
-**Multi-layer bot detection engine for Node.js / Express.**  
-Blocks automated traffic, watermarks suspicious sessions, and poisons scraped data — without ever interrupting a real human.
+**Moteur de détection de bots multi-couches pour Node.js / Express.**  
+Bloque le trafic automatisé, filigranne les sessions suspectes et empoisonne les données scrapées — sans jamais interrompre un vrai humain.
 
-> **Core doctrine:** A single signal never decides. Every action requires corroboration from at least two independent detection domains.
-
----
-
-## Table of Contents
-
-1. [How It Works — The Big Picture](#how-it-works)
-2. [Detection Architecture — 7 Layers](#detection-architecture)
-3. [Causal Contradiction Engine — 14 Rules](#causal-contradiction-engine)
-4. [Decision Flow — 6 Realities](#decision-flow)
-5. [Data Protection — Watermark + Poison](#data-protection)
-6. [Screenshot Bot Defenses](#screenshot-bot-defenses)
-7. [Admin Dashboard](#admin-dashboard)
-8. [Quick Start](#quick-start)
-9. [Integration Guide](#integration-guide)
-10. [Configuration Reference](#configuration-reference)
-11. [Security Checklist](#security-checklist)
-12. [Honest Limitations](#honest-limitations)
+> **Doctrine fondamentale : un seul signal ne décide jamais. Chaque blocage exige la corroboration d'au moins deux domaines de détection indépendants.**
 
 ---
 
-## How It Works
+## Sommaire
 
-A visitor arrives. The system never asks "is this a bot?" It asks:
+1. [Comment ça marche](#comment-ça-marche)
+2. [Architecture de détection — 7 couches](#architecture-de-détection)
+3. [Moteur de contradictions causales — 14 règles](#moteur-de-contradictions-causales)
+4. [Flux de décision — 6 réalités](#flux-de-décision)
+5. [Protection des données — Filigrane + Poison](#protection-des-données)
+6. [Défenses contre les bots screenshot](#défenses-contre-les-bots-screenshot)
+7. [Dashboard Admin](#dashboard-admin)
+8. [Démarrage rapide](#démarrage-rapide)
+9. [Guide d'intégration](#guide-dintégration)
+10. [Référence de configuration](#référence-de-configuration)
+11. [Checklist sécurité](#checklist-sécurité)
+12. [Limites honnêtes](#limites-honnêtes)
 
-> **"Can the observed facts causally coexist on a real physical device?"**
+---
 
-Every layer observes its domain and emits **facts**. Facts feed a **causal contradiction engine** that checks whether the combination is physically plausible. Contradictions from two or more independent domains trigger escalation.
+## Comment ça marche
+
+Un visiteur arrive. Le système ne se pose pas la question "est-ce un bot ?". Il se pose la question :
+
+> **"Les faits observés peuvent-ils coexister causalement sur un vrai appareil physique ?"**
+
+Chaque couche observe son domaine et émet des **faits**. Ces faits alimentent un **moteur de contradictions causales** qui vérifie si la combinaison est physiquement plausible. Des contradictions venant de deux domaines indépendants ou plus déclenchent une escalade.
 
 ```
-Visitor
+Visiteur
   │
-  ├─ L1 Network/TLS   → JA4 fingerprint, header anomalies, bot UA declarations
-  ├─ L2 IP Reputation → Datacenter ASN, blacklists, velocity
-  ├─ L3 PoW           → Argon2id challenge (2–4s CPU, anti-replay nonce)
-  ├─ L4 Hardware      → GPU renderer, render time, screen coherence, DPR
-  ├─ L5 Automation    → WebDriver, CDP traps, VSync analysis
-  ├─ L6 Biometrics    → Mouse trajectory, keystroke timing, pressure
-  └─ L7 Session       → Opaque token, per-session seed for data refraction
+  ├─ L1 Réseau/TLS     → Empreinte JA4, anomalies d'en-têtes, UA bots déclaratifs
+  ├─ L2 Réputation IP  → ASN datacenter, listes noires, vélocité
+  ├─ L3 Preuve de travail → Défi Argon2id (2–4s CPU, nonce anti-rejeu)
+  ├─ L4 Hardware       → GPU, temps de rendu, cohérence écran, DPR
+  ├─ L5 Automatisation → WebDriver, pièges CDP, analyse VSync
+  ├─ L6 Biométrie      → Trajectoire souris, timing clavier, pression
+  └─ L7 Session        → Token opaque, seed par session pour la réfraction des données
          │
          ▼
-  Causal Contradiction Engine (14 rules)
+  Moteur de contradictions causales (14 règles)
          │
          ▼
-  Reality: normal / watermarked / decoy / observed / gate_required / blocked
+  Réalité : normal / watermarked / decoy / observed / gate_required / blocked
          │
          ▼
   refract(data, policy, sessionSeed, epoch)  →  client
 ```
 
-Bots that pass the gate receive valid responses — but with watermarked identifiers and poisoned aggregate fields. Their scraped datasets are **traceable and mathematically corrupted**.
+Les bots qui passent la porte reçoivent des réponses valides — mais avec des identifiants filigranés et des champs agrégés empoisonnés. Leurs datasets scrapés sont **traçables et mathématiquement corrompus**.
 
 ---
 
-## Detection Architecture
+## Architecture de détection
 
-### L1 — Network & TLS
+### L1 — Réseau & TLS
 
-Examines the request before any application logic runs.
+Analyse la requête avant toute logique applicative. S'exécute sur **toutes les routes** en lecture seule — ne bloque jamais seul, dépose `req.l1Signals` pour l'orchestrateur.
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| Known bot User-Agent (`Googlebot`, `sqlmap`, `GPTBot`…) | −100 | Declarative — bot identifies itself |
-| JA4 TLS fingerprint mismatch | variable | TLS hello differs from declared UA |
-| HTTP/1.x header order anomaly | −15 | Host not first = proxy/library |
-| UA casing anomaly (`user-agent` vs `User-Agent`) | −15 | Libraries vs real browsers |
+| User-Agent bot connu (`Googlebot`, `sqlmap`, `GPTBot`…) | −100 | Déclaratif — le bot s'identifie lui-même |
+| Empreinte TLS JA4 ne correspond pas à l'UA déclaré | variable | Hello TLS différent du navigateur déclaré |
+| Ordre des en-têtes HTTP/1.x anormal | −15 | Host pas en tête = proxy/bibliothèque |
+| Casse User-Agent non standard (`user-agent` vs `User-Agent`) | −15 | Librairies HTTP vs vrais navigateurs |
 
-### L2 — IP Reputation
+### L2 — Réputation IP
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| IP in datacenter CIDR (AWS, GCP, Azure, DigitalOcean…) | −15 | Weak alone — WARP/iCloud Relay also match |
-| IP in ASN blacklist (15 infrastructure-only ASNs) | −25 | Stronger — residential humans never appear here |
-| IP flagged suspect (recent block in last 30 min) | −30 | Rolling window |
-| Camoufox + CDP detected simultaneously | −20 | Extra penalty on L4 for compound signal |
+| IP dans CIDR datacenter (AWS, GCP, Azure, DigitalOcean…) | −15 | Seul, très faible — WARP/iCloud Relay aussi |
+| IP dans liste noire ASN (15 ASNs infrastructure exclusifs) | −25 | Plus fort — aucun humain résidentiel ici |
+| IP signalée suspecte (blocage récent dans les 30 min) | −30 | Fenêtre glissante |
+| Camoufox + CDP détectés simultanément | −20 | Pénalité extra sur L4 pour signal combiné |
 
-### L3 — Proof of Work (Argon2id)
+### L3 — Preuve de travail (Argon2id)
 
-Every visitor solves a server-nonce–bound Argon2id challenge before receiving any session token. This makes mass bot operations economically unviable.
+Tout visiteur résout un défi Argon2id lié à un nonce serveur avant de recevoir un token de session. Cela rend les opérations de bots en masse économiquement non rentables.
 
-| Parameter | Value |
+| Paramètre | Valeur |
 |---|---|
-| Algorithm | Argon2id |
-| Difficulty | 4–7 (adaptive based on fleet posture) |
-| Memory | 4096 KB |
-| Time cost | 2 iterations |
-| Nonce TTL | 10 minutes (single-use, anti-replay) |
+| Algorithme | Argon2id |
+| Difficulté | 4–7 (adaptative selon la posture de flotte) |
+| Mémoire | 4 096 Ko |
+| Coût en temps | 2 itérations |
+| TTL nonce | 10 minutes (usage unique, anti-rejeu) |
 
-**Adaptive difficulty:** when the fleet posture escalates (`VIGILANCE` / `ATTACK`), the difficulty ratchets up (capped at 5 with a 90s grace period). Humans who stay on the page through an escalation get a new nonce automatically.
+**Difficulté adaptative :** quand la posture de flotte monte (`VIGILANCE` / `ATTAQUE`), la difficulté augmente (plafonnée à 5 avec une grâce de 90s). Les humains qui restent sur la page pendant une escalade reçoivent automatiquement un nouveau nonce.
 
-### L4 — Hardware Fingerprint
+### L4 — Empreinte matérielle
 
-Checks that the declared hardware is physically coherent. This layer has the most signals.
+Vérifie que le hardware déclaré est physiquement cohérent. C'est la couche la plus riche en signaux.
 
-**GPU Renderer**
+**Renderer GPU**
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| SwiftShader / ANGLE-Software | −35 | Headless Chrome default — also matches blocklistd GPUs |
-| llvmpipe / Mesa Offscreen / Microsoft Basic Render | −25 | VDI/RDP (capped — legitimate RDP users exist) |
-| GPU family ↔ OS mismatch | −50 | Apple GPU on non-Apple UA; Adreno/Mali on non-Android UA |
+| SwiftShader / ANGLE-Software | −35 | Chrome headless par défaut — correspond aussi aux GPU blacklistés |
+| llvmpipe / Mesa Offscreen / Microsoft Basic Render | −25 | VDI/RDP (plafonné — humains en RDP légitimes existent) |
+| Famille GPU ↔ OS incohérents | −50 | GPU Apple sur UA non-Apple ; Adreno/Mali sur UA non-Android |
 
-**WebGL Render Time**
+**Temps de rendu WebGL**
 
-A 256×256 canvas with a 64-iteration trigonometric shader is rendered 5 times with `gl.finish()` forcing GPU sync. Real GPUs: <2ms/frame. SwiftShader: >50ms/frame.
+Un canvas 256×256 avec un shader trigonométrique (64 sin×cos par pixel) est rendu 5 fois avec `gl.finish()` forçant la synchronisation GPU. Vrai GPU : <2ms/frame. SwiftShader : >50ms/frame.
 
-| Signal | Penalty | Threshold |
+| Signal | Pénalité | Seuil |
 |---|---|---|
-| Render time > 25ms/draw | −30 | Catches software renderers that spoof the renderer string |
+| Temps de rendu > 25ms/draw | −30 | Détecte les renderers logiciels qui spoofent leur string renderer |
 
-**Screen Profile**
+**Profil d'écran**
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| `pointer: none` (no pointing device) | −40 | Headless Linux without X11 |
-| Mobile UA + `pointer: fine` | −40 | Finger input impossible with mouse pointer |
-| Mobile UA + `maxTouchPoints = 0` | −40 | Real mobile always ≥ 1 |
-| Mobile UA + `devicePixelRatio ≤ 1.0` | −35 | Cheapest Android phone ≥ 1.5 DPR |
+| `pointer: none` (aucun dispositif de pointage) | −40 | Linux headless sans X11 |
+| UA mobile + `pointer: fine` | −40 | Doigt impossible avec pointeur souris — UA spoofé |
+| UA mobile + `maxTouchPoints = 0` | −40 | Vrai mobile toujours ≥ 1 point tactile |
+| UA mobile + `devicePixelRatio ≤ 1.0` | −35 | Android le moins cher ≥ 1.5 DPR |
 
 **Canvas / Audio / WebGPU**
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| WebGL absent | −15 | Absence only — Brave/Tor/RFP also block |
-| Canvas blocked | −10 | Capped jointly (ABSENCE_CAP = −20) |
-| AudioContext absent | −10 | Capped jointly |
-| WebGPU absent on Chrome ≥113 with WebGL | −20 | Camoufox fingerprint |
+| WebGL absent | −15 | Absence seulement — Brave/Tor/RFP bloquent aussi |
+| Canvas bloqué | −10 | Plafonné ensemble (ABSENCE_CAP = −20) |
+| AudioContext absent | −10 | Plafonné ensemble |
+| WebGPU absent sur Chrome ≥113 avec WebGL actif | −20 | Empreinte Camoufox |
 
-**Other**
+**Autres**
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| Sensor desync (event dt < 1ms) | −100 | JS input injection proof |
-| Battery level > 1.0 | −30 | W3C spec violation — bot sending raw %, not 0.0–1.0 |
-| UA absent in fingerprint | −20 | Malformed payload (client broken or raw POST) |
+| Désynchronisation capteurs (dt événement < 1ms) | −100 | Preuve d'injection JS d'entrées |
+| Niveau batterie > 1.0 | −30 | Violation spec W3C — bot envoyant en %, pas en 0.0–1.0 |
+| UA absent du fingerprint | −20 | Payload malformé (client cassé ou POST brut) |
 
-### L5 — Automation Detection
+### L5 — Détection d'automatisation
 
-Detects the presence of browser control frameworks regardless of stealth level.
+Détecte la présence de frameworks de pilotage de navigateur, indépendamment du niveau de furtivité.
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| `navigator.webdriver === true` | −100 | Unpatched Selenium / Playwright |
-| `$cdc_` / `$wdc_` artifacts | −80 | ChromeDriver remnants |
-| `navigator.webdriver` accessor patched | −60 | Active stealth mode detected |
-| Firefox `webdriver` HTML attribute | −40 | Geckodriver / Marionette |
-| CDP Error.stack trap | −10 | DevTools Protocol active |
-| VSync absent (<5 rAF frames) | −20 | No real compositor |
-| VSync synthetic (variance < 0.001ms²) | −15 | Artificial clock |
+| `navigator.webdriver === true` | −100 | Selenium/Playwright non patché |
+| Artefacts `$cdc_` / `$wdc_` | −80 | Restes ChromeDriver |
+| Accesseur `navigator.webdriver` patché | −60 | Mode furtif actif détecté |
+| Attribut `webdriver` sur `<html>` Firefox | −40 | Geckodriver / Marionette |
+| Piège CDP Error.stack | −10 | DevTools Protocol actif |
+| VSync absent (<5 frames rAF) | −20 | Aucun compositeur graphique réel |
+| VSync synthétique (variance < 0.001ms²) | −15 | Horloge artificielle |
 
-**Threshold for `automation_anomaly` fact:** score ≤ −40. Signals like `vsyncAbsent` (−20) and `vsyncSynthetic` (−15) are excluded from the CRITICAL contradiction — they match Firefox RFP/privacy-mode false positives.
+**Seuil pour le fait `automation_anomaly` : score ≤ −40.** Les signaux `vsyncAbsent` (−20) et `vsyncSynthetic` (−15) en sont exclus — ils correspondent aux faux positifs du mode vie-privée de Firefox.
 
-### L6 — Biometrics
+### L6 — Biométrie comportementale
 
-Behavioral analysis of mouse and keyboard events collected during the PoW challenge.
+Analyse comportementale des événements souris et clavier collectés pendant le défi PoW.
 
-| Signal | Penalty | Notes |
+| Signal | Pénalité | Notes |
 |---|---|---|
-| No interaction (no mouse, touch, or keyboard) | −40 | Normal on fast PoW — not blockable alone |
-| Teleport jump >300px in <50ms | −70 | VLM click-by-coordinates |
-| Perfectly linear trajectory | −60 | Generated path |
-| CDP synthetic inject (pressure=0 or geometry=0) | −50 | CDP mouse injection |
-| Jerk = 0 (smooth trajectory) | −80 | Numerically generated |
-| Flat keystroke cadence (identical dwell times) | −40 | Injected keystrokes |
-| Superhuman typing (<8ms mean flight time) | −40 | Burst injection |
-| Moves without any click | −5 | Intentionally weak — humans browse without clicking |
-| Keyboard without pointer | −5 | Accessibility — very weak |
+| Aucune interaction (souris, tactile, ni clavier) | −40 | Normal sur PoW rapide — pas bloquable seul |
+| Saut >300px en <50ms | −70 | Clic par coordonnées VLM |
+| Trajectoire parfaitement linéaire | −60 | Chemin généré algorithmiquement |
+| Injection synthétique CDP (pression=0 ou géométrie=0) | −50 | Injection souris CDP |
+| Jerk nul (trajectoire lissée) | −80 | Génération numérique |
+| Cadence de frappe plate (dwell times identiques) | −40 | Frappes injectées |
+| Frappe surhumaine (<8ms de vol moyen) | −40 | Injection en rafale |
+| Mouvements sans clic | −5 | Intentionnellement faible — humains naviguent sans cliquer |
+| Clavier sans pointeur | −5 | Accessibilité — très faible |
 
-### L7 — Session Token
+### L7 — Token de session
 
-After successful PoW + pipeline clearance, an opaque JWT is issued and set as `HttpOnly, SameSite: Strict` cookie.
+Après PoW réussi + validation pipeline, un JWT opaque est émis en cookie `HttpOnly, SameSite: Strict`.
 
-The token embeds a **`sessionSeed`** — a per-visitor entropy value used by `refract()` to generate deterministic, unique watermarks for cosmetic API fields. The seed never changes for a given visitor, making leaked datasets attributable to a specific session.
+Le token contient un **`sessionSeed`** — une valeur d'entropie unique par visiteur utilisée par `refract()` pour générer des filigranes déterministes dans les champs cosmétiques des API. Le seed ne change jamais pour un visiteur donné, rendant les datasets leakés attribuables à une session précise.
 
 ---
 
-## Causal Contradiction Engine
+## Moteur de contradictions causales
 
-14 rules evaluate causal plausibility across 8 independent signal groups. A contradiction is only actionable when two or more **different** groups fire.
+14 règles évaluent la plausibilité causale sur 8 groupes de signaux indépendants. Une contradiction n'est actionnable que quand **deux groupes différents ou plus** se déclenchent.
 
-| # | Rule ID | Severity | Independent Group |
+| # | Règle | Sévérité | Groupe indépendant |
 |---|---|---|---|
 | 1 | `api_first_session` | high | `api_intent` |
 | 2 | `session_identity_drift` | medium | `network_consistency` |
@@ -200,135 +200,135 @@ The token embeds a **`sessionSeed`** — a per-visitor entropy value used by `re
 | 13 | `biometric_anomaly` | high | `human_interaction` |
 | 14 | `sensor_desync_detected` | **critical** | `sensor_sync` |
 
-**Corroboration doctrine:**
-- **1 CRITICAL** → blocked immediately (Zero Bot Mode) or decoy
-- **≥2 HIGH from different groups** → blocked (Zero Bot Mode) or decoy
-- **1 HIGH from 1 group** → watermarked (token granted, data poisoned)
-- **MEDIUM only** → watermarked
-- **0 contradictions, humanValidated** → normal
+**Doctrine de corroboration :**
+- **1 CRITICAL** → bloqué immédiatement (Zero Bot Mode) ou decoy
+- **≥2 HIGH de groupes différents** → bloqué (Zero Bot Mode) ou decoy
+- **1 HIGH d'un seul groupe** → watermarked (token accordé, données empoisonnées)
+- **MEDIUM seulement** → watermarked
+- **0 contradiction, humanValidated** → normal
 
 ---
 
-## Decision Flow
+## Flux de décision
 
 ```
-decideReality(session) → one of 6 realities:
+decideReality(session) → une de 6 réalités :
 
-blocked       → 403. Session earns a reputation strike.
-                Conditions: CRITICAL contradiction OR ≥2 independent HIGH groups (Zero Bot Mode)
+blocked       → 403. La session reçoit un strike de réputation.
+                Conditions : contradiction CRITICAL OU ≥2 groupes HIGH indépendants (Zero Bot Mode)
 
-decoy         → 200 OK. Session receives deliberately wrong data.
-                Conditions: same as blocked but Zero Bot Mode disabled
+decoy         → 200 OK. La session reçoit des données délibérément fausses.
+                Conditions : idem blocked mais Zero Bot Mode désactivé
 
-watermarked   → 200 OK. Real data + watermark + honeypot fields injected.
-                Conditions: 1 HIGH group OR any MEDIUM contradiction
+watermarked   → 200 OK. Données réelles + filigrane + champs honeypot injectés.
+                Conditions : 1 groupe HIGH OU toute contradiction MEDIUM
 
-observed      → 200 OK. Real data + watermark. No honeypot injection.
-                Conditions: same as watermarked but Zero Bot Mode disabled
+observed      → 200 OK. Données réelles + filigrane. Pas d'injection honeypot.
+                Conditions : idem watermarked mais Zero Bot Mode désactivé
 
-gate_required → Redirect to gateway.html (Argon2id PoW)
-                Conditions: no CRITICAL/HIGH, but session not yet humanValidated
+gate_required → Redirection vers gateway.html (PoW Argon2id)
+                Conditions : pas de CRITICAL/HIGH, mais session non encore humanValidated
 
-normal        → Full access. Light refraction only.
-                Conditions: humanValidated = true, coherence clean
+normal        → Accès complet. Réfraction légère uniquement.
+                Conditions : humanValidated = true, cohérence propre
 ```
 
-The `suspicion` value (0.0 – 1.0) is available at `req.visitor.suspicion` for fine-grained routing in your application.
+La valeur `suspicion` (0.0 – 1.0) est disponible sur `req.visitor.suspicion` pour du routage fin dans ton application.
 
 ---
 
-## Data Protection
+## Protection des données
 
-### Refraction Engine
+### Moteur de réfraction
 
-Every API response passes through `refract(data, policy, sessionSeed, epoch)`.
+Toute réponse API passe par `refract(data, policy, sessionSeed, epoch)`.
 
 ```js
 const { refract, currentEpoch } = require('./prism-sdk/src/server/refractor');
 
-const PRODUCT_POLICY = {
-  id:          'actionable',  // Exact — humans and bots see the same value
-  price:       'actionable',  // Exact — never tampered
-  name:        'cosmetic',    // Per-session watermark (synonym substitution)
-  description: 'cosmetic',   // Per-session watermark
-  rank:        'aggregate',   // Per-item+epoch poison (inter-session average = poisoned)
-  views:       'aggregate',   // Per-item+epoch poison
+const POLICY_PRODUITS = {
+  id:          'actionable',  // Exact — humains et bots voient la même valeur
+  prix:        'actionable',  // Exact — jamais modifié
+  nom:         'cosmetic',    // Filigrane par session (substitution de synonymes)
+  description: 'cosmetic',   // Filigrane par session
+  rang:        'aggregate',   // Poison par item+epoch (la moyenne inter-sessions = poisonné)
+  vues:        'aggregate',   // Poison par item+epoch
 };
 
-app.get('/api/products', requireHuman, (req, res) => {
-  const data = refract(products, PRODUCT_POLICY, req.visitor.internalSeed, currentEpoch());
+app.get('/api/produits', requireHuman, (req, res) => {
+  const data = refract(produits, POLICY_PRODUITS, req.visitor.internalSeed, currentEpoch());
   res.json(data);
 });
 ```
 
-### Three Field Policies
+### Les trois politiques de champ
 
-| Policy | Mechanism | Human impact | Bot impact |
+| Politique | Mécanisme | Impact humain | Impact bot |
 |---|---|---|---|
-| `actionable` | Exact — never modified | Zero | Zero (this field is safe to expose) |
-| `cosmetic` | Synonym watermark per session | Reads "robust" instead of "sturdy" | Leaks are attributed to the source session |
-| `aggregate` | Structural offset per item+epoch | Zero | Average of 1000 sessions = poisoned value |
+| `actionable` | Exact — jamais modifié | Zéro | Zéro (ce champ est sûr à exposer) |
+| `cosmetic` | Filigrane synonyme par session | Lit "robuste" au lieu de "solide" | Les fuites sont attribuées à la session source |
+| `aggregate` | Décalage structurel par item+epoch | Zéro | Moyenne de 1 000 sessions = valeur empoisonnée |
 
-### Why Aggregate Poison Resists Averaging
+### Pourquoi le poison agrégé résiste à la moyenne
 
-Random per-session noise cancels out when averaged:
+Le bruit aléatoire par session s'annule quand on moyenne :
 ```
-Session A: rank=4, Session B: rank=2, Session C: rank=3 → average ≈ 3 (true)
-```
-
-Epoch-bound poison is the **same for all sessions** in a given time window:
-```
-Session A: rank=5, Session B: rank=5, Session C: rank=5 → average = 5 (poisoned)
+Session A: rang=4, Session B: rang=2, Session C: rang=3 → moyenne ≈ 3 (vraie valeur)
 ```
 
-A scraper's training dataset is systematically wrong — not randomly noisy.
+Le poison lié à l'epoch est **identique pour toutes les sessions** dans une fenêtre temporelle :
+```
+Session A: rang=5, Session B: rang=5, Session C: rang=5 → moyenne = 5 (valeur empoisonnée)
+```
 
-### Honeypot Injection
+Le dataset d'entraînement d'un scraper est systématiquement faux — pas aléatoirement bruité.
 
-Suspicious sessions (`decoy` or `watermarked`) receive extra fields in API responses:
+### Injection honeypot
+
+Les sessions suspectes (`decoy` ou `watermarked`) reçoivent des champs supplémentaires dans les réponses API :
 
 ```json
 {
   "id": "svc-1",
-  "name": "Core API",
+  "nom": "API Principale",
   "__ghost_rank": 7,
   "__trap_api": "/__internal/v2/stats"
 }
 ```
 
-A bot that follows `__trap_api` triggers the honeypot, earns a reputation strike, and its session escalates to `blocked`.
+Un bot qui suit `__trap_api` déclenche le honeypot, reçoit un strike de réputation, et sa session passe à `blocked`.
 
 ---
 
-## Screenshot Bot Defenses
+## Défenses contre les bots screenshot
 
-Screenshot bots visit the site like humans, render the full page, take a screenshot, and send it to hosting providers to report the site. They do not scrape — they just need a visual.
+Les bots screenshot visitent le site comme des humains, rendent la page complète, prennent une capture d'écran et l'envoient aux hébergeurs pour signaler le site. Ils ne scrape pas — ils ont juste besoin d'un visuel.
 
-### 1. Gateway Anonymization
+### 1. Anonymisation de la gateway
 
-`gateway.html` contains no branding, no service name, no identifying information. A screenshot reveals only a spinner on a dark background.
+`gateway.html` ne contient aucune marque, aucun nom de service, aucune information identifiable. Une capture d'écran ne révèle qu'un spinner sur fond sombre.
 
-### 2. Landing Page Lazy Reveal
+### 2. Révélation paresseuse de la landing page
 
-An opaque overlay (`#0a0f1e`, `z-index: 999999`) covers the entire landing page at load. It is removed only when the first real human input event arrives:
+Un overlay opaque (`#0a0f1e`, `z-index: 999999`) couvre toute la landing page au chargement. Il est retiré seulement au premier événement d'interaction humaine :
 
 ```
-mousemove | touchstart | scroll | keydown  →  overlay fades out (0.4s)
-3 seconds with no interaction              →  overlay auto-removes (real users who don't move)
+mousemove | touchstart | scroll | keydown  →  overlay fade out (0.4s)
+3 secondes sans interaction                →  révélation automatique (humains immobiles)
 ```
 
-Screenshot bots that capture immediately see a black screen. The 3-second fallback ensures immobile real users are not stuck.
+Les bots screenshot qui capturent immédiatement voient un écran noir. Le fallback 3 secondes garantit que les vrais utilisateurs immobiles ne restent pas bloqués.
 
-### 3. Physical Screen Detection (L4 Screen Profile)
+### 3. Détection d'écran physique (profil écran L4)
 
-Collected via `getScreenProfile()` in the gateway challenge. Detects devices without a real physical display:
+Collecté via `getScreenProfile()` dans le défi gateway. Détecte les appareils sans vrai écran physique :
 
 ```js
-// Client-side (gateway.html)
+// Côté client (gateway.html)
 function getScreenProfile() {
   return {
-    rafMean:       /* mean rAF interval in ms */,
-    rafSamples:    /* number of valid rAF frames */,
+    rafMean:       /* intervalle rAF moyen en ms */,
+    rafSamples:    /* nombre de frames rAF valides */,
     pointerFine:   matchMedia('(pointer: fine)').matches,
     pointerCoarse: matchMedia('(pointer: coarse)').matches,
     pointerNone:   matchMedia('(pointer: none)').matches,
@@ -342,81 +342,81 @@ function getScreenProfile() {
 
 ---
 
-## Admin Dashboard
+## Dashboard Admin
 
-Available at `/admin` (requires `x-admin-token` header or login).
+Disponible sur `/admin` (nécessite l'en-tête `x-admin-token` ou connexion).
 
-**Overview tab:** live fleet stats (posture, allow/block rates, suspicion distribution, honeypot activity).
+**Onglet Vue d'ensemble :** stats de flotte en direct (posture, taux allow/block, distribution de suspicion, activité honeypot).
 
-**Visitors tab:** per-session detail — IP, score, layer breakdown, contradiction list, reality label.
+**Onglet Visiteurs :** détail par session — IP, score, décomposition par couche, liste de contradictions, label de réalité.
 
-**Logs tab:** rolling event log with layer-prefixed reasons.
+**Onglet Logs :** journal d'événements glissant avec raisons préfixées par couche.
 
-**Download report:** full JSON snapshot via `GET /api/admin/report` — includes posture, visitors, events, honeypot stats, causal contradictions.
+**Télécharger le rapport :** snapshot JSON complet via `GET /api/admin/report` — inclut posture, visiteurs, événements, stats honeypot, contradictions causales.
 
-**Telegram alerts:** real-time notifications on bot blocks and suspicious activity.
+**Alertes Telegram :** notifications en temps réel sur les blocages de bots et l'activité suspecte.
 
 ---
 
-## Quick Start
+## Démarrage rapide
 
 ```bash
-git clone <this repo>
+git clone <ce repo>
 cd antibotsite
 npm install
 cp .env.example .env
-# Edit .env: set SECRET_KEY and ADMIN_TOKEN
+# Éditer .env : définir SECRET_KEY et ADMIN_TOKEN
 npm start
 # → http://localhost:3000
 ```
 
-**Development (auto-restart):**
+**Développement (redémarrage automatique) :**
 ```bash
 npm run dev
 ```
 
-**Tests:**
+**Tests :**
 ```bash
 npm test
 ```
 
 ---
 
-## Integration Guide
+## Guide d'intégration
 
-### Adding Prisme to an existing Express app
+### Ajouter Prisme à un projet Express existant
 
-**Step 1 — Install dependencies**
+**Étape 1 — Installer les dépendances**
 
 ```bash
 npm install argon2 cookie-parser helmet express-rate-limit
 ```
 
-**Step 2 — Copy the antibot directory**
+**Étape 2 — Copier les répertoires antibot**
 
 ```
-your-project/
+ton-projet/
   src/
-    antibot/          ← copy this entire directory
-    layers/           ← copy this entire directory
-    config/tuning.js  ← copy and adjust thresholds
-    policy/           ← copy verdict.js and posture.js
-    store/            ← copy visitors.js, reputation.js, events.js, nonces.js
-  prism-sdk/          ← copy this entire directory
+    antibot/          ← copier ce répertoire complet
+    layers/           ← copier ce répertoire complet
+    config/tuning.js  ← copier et ajuster les seuils
+    policy/           ← copier verdict.js et posture.js
+    store/            ← copier visitors.js, reputation.js, events.js, nonces.js
+  prism-sdk/          ← copier ce répertoire complet
   public/
-    argon2.min.js     ← required client-side
-    argon2.wasm       ← required client-side
+    argon2.min.js     ← requis côté client
+    argon2.wasm       ← requis côté client
 ```
 
-**Step 3 — Register middleware**
+**Étape 3 — Enregistrer les middlewares**
 
 ```js
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 const helmet       = require('helmet');
 const rateLimit    = require('express-rate-limit');
-const antibotEntry = require('./antibot/middleware/antibotEntry');
 const L1_network   = require('./layers/L1_network');
+const antibotEntry = require('./antibot/middleware/antibotEntry');
 
 const app = express();
 
@@ -424,28 +424,28 @@ app.use(helmet());
 app.use(cookieParser());
 app.use(express.json());
 
-// Global rate limit
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
+// Limite globale
+app.use(rateLimit({ windowMs: 60 * 1000, max: 60 }));
 
-// L1 — network signals collected before routes
-app.use(L1_network.middleware);
+// L1 — signaux réseau (lecture seule, ne bloque pas seul)
+app.use(L1_network.analyze);
 
-// Prisme session + causal pipeline
+// Session Prisme + pipeline causal
 app.use(antibotEntry);
 ```
 
-**Step 4 — Add the gateway routes**
+**Étape 4 — Ajouter les routes de gateway**
 
 ```js
 const validationController = require('./controllers/validationController');
 const L7_session           = require('./layers/L7_session');
 
-// PoW challenge endpoints (public — no gate)
-router.get('/api/challenge-config',  validationController.getChallengeConfig);
-router.post('/api/verify-challenge', validationController.verifyChallenge);
+// Endpoints PoW (publics — pas de gate)
+router.get('/api/challenge-config',    validationController.getChallengeConfig);
+router.post('/api/verify-challenge',   validationController.verifyChallenge);
 router.post('/api/feedback-invisible', validationController.recordSilentFeedback);
 
-// Human gate middleware
+// Middleware gate humain
 const requireHuman = (req, res, next) => {
   const jwt = L7_session.verifyToken(req.cookies['human_auth_token']);
   if (jwt.valid) return next();
@@ -454,49 +454,51 @@ const requireHuman = (req, res, next) => {
 };
 ```
 
-**Step 5 — Serve the gateway page**
+**Étape 5 — Servir la gateway**
 
 ```js
-// Web routes — gate all protected pages
-app.get('/', requireHuman, (req, res) => res.sendFile('landing.html'));
 app.get('/gateway', (req, res) => res.sendFile('gateway.html'));
+
+// Toutes les pages protégées passent par requireHuman
+app.get('/', requireHuman, (req, res) => res.sendFile('landing.html'));
+app.get('/app', requireHuman, (req, res) => res.sendFile('app.html'));
 ```
 
-**Step 6 — Wrap all API responses**
+**Étape 6 — Envelopper toutes les réponses API**
 
 ```js
 const { refract, currentEpoch } = require('./prism-sdk/src/server/refractor');
 const { getSessionSeed }        = require('./middlewares/prismAdapter');
 
-// Define your policy
-const MY_POLICY = {
-  id:          'actionable',
-  price:       'actionable',
-  name:        'cosmetic',
-  description: 'cosmetic',
-  rank:        'aggregate',
+// Définir ta politique de champs
+const MA_POLICY = {
+  id:          'actionable',  // Toujours exact
+  prix:        'actionable',  // Toujours exact
+  nom:         'cosmetic',    // Filigrane traçable
+  description: 'cosmetic',   // Filigrane traçable
+  rang:        'aggregate',   // Empoisonné — résiste à la moyenne
 };
 
-app.get('/api/products', requireHuman, (req, res) => {
+app.get('/api/produits', requireHuman, (req, res) => {
   const seed = getSessionSeed(req);
-  const data = refract(rawProducts, MY_POLICY, seed, currentEpoch());
+  const data = refract(rawProduits, MA_POLICY, seed, currentEpoch());
   res.json(data);
 });
 ```
 
-**Step 7 — Add the gateway HTML**
+**Étape 7 — Copier la gateway HTML**
 
-Copy `src/views/gateway.html` and `public/argon2.min.js` / `argon2.wasm` to your project. The gateway requires no framework — it is a self-contained HTML file with an inline IIFE.
+Copier `src/views/gateway.html` et `public/argon2.min.js` / `argon2.wasm`. La gateway ne nécessite aucun framework — c'est un fichier HTML autonome avec une IIFE inline.
 
-**Step 8 — Add the lazy reveal overlay to your landing page**
+**Étape 8 — Ajouter l'overlay de révélation paresseuse**
 
-Paste this immediately after your `<body>` tag:
+Coller ceci immédiatement après ta balise `<body>` sur ta landing page :
 
 ```html
 <script>!function(){var g=document.createElement('div');g.id='__sgrd';g.style.cssText='position:fixed;inset:0;background:#0a0f1e;z-index:999999;pointer-events:none;transition:opacity 0.4s ease;';document.body.appendChild(g);var done=false;function reveal(){if(done)return;done=true;g.style.opacity='0';setTimeout(function(){if(g.parentNode)g.parentNode.removeChild(g);},400);['mousemove','touchstart','scroll','keydown'].forEach(function(e){document.removeEventListener(e,reveal,true);});}['mousemove','touchstart','scroll','keydown'].forEach(function(e){document.addEventListener(e,reveal,{once:true,passive:true,capture:true});});setTimeout(reveal,3000);}();</script>
 ```
 
-Change `background:#0a0f1e` to match your site's background color.
+Changer `background:#0a0f1e` pour correspondre à la couleur de fond de ton site.
 
 ### Edge / Serverless (Cloudflare Workers)
 
@@ -510,126 +512,114 @@ addEventListener('fetch', event => {
 
 async function handleRequest(request) {
   const decision = analyzeRequest({
-    path:         new URL(request.url).pathname,
-    method:       request.method,
-    userAgent:    request.headers.get('user-agent'),
-    cookieHeader: request.headers.get('cookie'),
+    path:           new URL(request.url).pathname,
+    method:         request.method,
+    userAgent:      request.headers.get('user-agent'),
+    cookieHeader:   request.headers.get('cookie'),
     humanValidated: false,
   });
 
-  if (decision.action === 'deny') {
-    return new Response('Access restricted', { status: 403 });
-  }
-  if (decision.action === 'gate') {
-    return Response.redirect('/gateway');
-  }
+  if (decision.action === 'deny') return new Response('Accès restreint', { status: 403 });
+  if (decision.action === 'gate') return Response.redirect('/gateway');
 
-  // Forward to origin, add Prisme headers
-  const response = await fetch(request);
-  return response;
+  return fetch(request);
 }
 ```
 
 ---
 
-## Configuration Reference
+## Référence de configuration
 
-### Environment Variables
+### Variables d'environnement
 
-| Variable | Required | Default | Description |
+| Variable | Requise | Défaut | Description |
 |---|---|---|---|
-| `SECRET_KEY` | Yes | random (sessions reset on restart) | JWT signing key |
-| `ADMIN_TOKEN` | Yes | random (printed at startup) | Admin dashboard bearer token |
-| `ANTIBOT_ZERO_BOT_MODE` | No | `true` | `false` → watermark only, never block |
-| `PORT` | No | `3000` | HTTP listen port |
-| `NODE_ENV` | No | `development` | `production` enables `Secure` cookies |
-| `TELEGRAM_BOT_TOKEN` | No | — | Telegram alert bot token |
-| `TELEGRAM_CHAT_ID` | No | — | Telegram chat/channel ID for alerts |
-| `CF_CONNECTING_IP` | No | — | Header name for Cloudflare real IP |
+| `SECRET_KEY` | Oui | aléatoire (sessions reset au redémarrage) | Clé de signature JWT |
+| `ADMIN_TOKEN` | Oui | aléatoire (affiché au démarrage) | Token bearer dashboard admin |
+| `ANTIBOT_ZERO_BOT_MODE` | Non | `true` | `false` → filigrane seulement, jamais de blocage |
+| `PORT` | Non | `3000` | Port d'écoute HTTP |
+| `NODE_ENV` | Non | `development` | `production` active les cookies `Secure` |
+| `TELEGRAM_BOT_TOKEN` | Non | — | Token du bot Telegram pour les alertes |
+| `TELEGRAM_CHAT_ID` | Non | — | ID du chat/canal Telegram pour les alertes |
 
-### Tuning (`src/config/tuning.js`)
+### Calibration (`src/config/tuning.js`)
 
-All numeric thresholds are centralized here. No heuristic values appear in layer files.
+Tous les seuils numériques sont centralisés ici. Aucune valeur heuristique n'apparaît dans les fichiers de couches.
 
-**Key values:**
+**Valeurs clés :**
 
 ```js
 verdict: {
-  trustThreshold:    60,   // score ≥ 60 → human session issued
-  strikeThreshold:   20,   // score < 20 → ban eligible
-  significantSignal: -15,  // minimum contribution to count as a witness
-},
-
-L3: {
-  minDifficulty: 4,         // PoW floor
-  maxDifficulty: 5,         // PoW ceiling (adaptive)
+  trustThreshold:    60,   // score ≥ 60 → session humaine accordée
+  strikeThreshold:   20,   // score < 20 → ban possible
+  significantSignal: -15,  // contribution min. pour compter comme témoin
 },
 
 L4: {
-  headlessRenderer:  -35,   // SwiftShader
-  vdiRenderer:       -25,   // llvmpipe / Basic Render (capped with absences)
-  gpuOsMismatch:     -50,   // Apple GPU on Windows UA, Adreno on macOS UA, etc.
-  webglRenderSlow:   -30,   // > 25ms/draw → software renderer
-  screenPointerNone: -40,   // pointer:none
-  screenMobileMismatch: -40,// mobile UA + desktop pointer or no touch
-  mobileUaDprLow:    -35,   // mobile UA + DPR ≤ 1.0
-  sensorDesync:     -100,   // JS input injection
-  batterySpoof:      -30,   // level > 1.0
+  headlessRenderer:     -35,  // SwiftShader
+  vdiRenderer:          -25,  // llvmpipe / Basic Render (plafonné avec absences)
+  gpuOsMismatch:        -50,  // GPU Apple sur UA Windows, Adreno sur UA macOS, etc.
+  webglRenderSlow:      -30,  // > 25ms/draw → renderer logiciel
+  screenPointerNone:    -40,  // pointer:none
+  screenMobileMismatch: -40,  // UA mobile + pointeur desktop ou sans tactile
+  mobileUaDprLow:       -35,  // UA mobile + DPR ≤ 1.0
+  sensorDesync:        -100,  // injection JS d'entrées
+  batterySpoof:         -30,  // level > 1.0
 },
 
 L5: {
-  webdriverNative:  -100,   // navigator.webdriver = true
-  firefoxDriver:     -40,   // geckodriver attribute
-  vsyncAbsent:       -20,   // < 5 rAF frames
-  vsyncSynthetic:    -15,   // variance < 0.001
+  webdriverNative: -100,  // navigator.webdriver = true
+  firefoxDriver:    -40,  // attribut geckodriver
+  vsyncAbsent:      -20,  // < 5 frames rAF
+  vsyncSynthetic:   -15,  // variance < 0.001
 },
 
 L6: {
-  noInteraction:     -40,   // no mouse/touch/keyboard
-  teleport:          -70,   // >300px jump in <50ms
-  syntheticInject:   -50,   // CDP pressure=0 injection
-}
+  noInteraction:   -40,  // aucune souris/tactile/clavier
+  teleport:        -70,  // saut >300px en <50ms
+  syntheticInject: -50,  // injection CDP pression=0
+},
 ```
 
 ---
 
-## Security Checklist
+## Checklist sécurité
 
-- [x] `robots.txt` → `Disallow: /` (all crawlers)
-- [x] `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` on all responses
-- [x] Human session gate on all content and API routes
-- [x] Sensitive APIs require `humanValidated: true`
-- [x] Admin routes require `x-admin-token` header
-- [x] `human_auth_token` cookie: `httpOnly`, `secure` (production), `SameSite: Strict`
-- [x] `SECRET_KEY` from environment only — never hardcoded
-- [x] All API responses pass through `refract()` — no raw data ever served
-- [x] Server nonce per PoW challenge (single-use, 10-min TTL) — prevents replay
-- [x] Honeypot trap on `/__internal/v2/stats`
-- [x] CSRF check on `/api/feedback-invisible` (same-origin only)
-- [x] Cloudflare IP extraction (`CF-Connecting-IP` validation)
-- [x] Global rate limit: 500 req / 15 min per IP
-- [x] Argon2id PoW — mass bot operation economically unviable at difficulty 4+
-- [x] Gateway anonymized — no branding visible in screenshot
-- [x] Landing page lazy reveal — screenshot bots see only a dark screen
-- [x] Session seed embedded in JWT — data leaks attributable to source session
-
----
-
-## Honest Limitations
-
-**A bot running on a real physical device passes everything.**  
-A real MacBook running Puppeteer has a real Apple GPU, real DPR, real rAF cadence. The system has no way to distinguish it from a human. However, renting 1000 MacBooks to scrape a site costs thousands of dollars per day — which is precisely the point. Prisme makes the attack unprofitable, not impossible.
-
-**Watermark attribution requires a truth anchor.**  
-If a scraper has one item with a known correct value from another source, they can compute the bias and de-poison aggregate fields for that item. The watermark still traces the source session, and the overall training dataset quality is still degraded.
-
-**Zero Bot Mode is not zero bots.**  
-Sufficiently motivated attackers with real hardware and time will eventually pass. The economic deterrent is the defense — not the gate itself.
-
-**The only higher bar:** authentication + payment/identity verification + per-account rate limiting + legal terms. That adds friction for legitimate users too — it is a product decision, not a technical one.
+- [x] `robots.txt` → `Disallow: /` (tous les crawlers)
+- [x] `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` sur toutes les réponses
+- [x] Gate session humaine sur toutes les routes de contenu et API
+- [x] APIs sensibles exigent `humanValidated: true`
+- [x] Routes admin exigent l'en-tête `x-admin-token`
+- [x] Cookie `human_auth_token` : `httpOnly`, `secure` (production), `SameSite: Strict`
+- [x] `SECRET_KEY` depuis les variables d'env uniquement — jamais hardcodé
+- [x] Toutes les réponses API passent par `refract()` — aucune donnée brute servie
+- [x] Nonce serveur par défi PoW (usage unique, TTL 10 min) — anti-rejeu
+- [x] Piège honeypot sur `/__internal/v2/stats`
+- [x] Vérification CSRF sur `/api/feedback-invisible` (même origine seulement)
+- [x] Extraction IP Cloudflare (`CF-Connecting-IP` validé contre les CIDR CF)
+- [x] Limite globale : 60 req/min par IP
+- [x] PoW Argon2id — opération de bots en masse économiquement non viable à difficulté 4+
+- [x] Gateway anonymisée — aucune marque visible dans les captures d'écran
+- [x] Révélation paresseuse landing — les bots screenshot voient uniquement un écran sombre
+- [x] Seed de session dans le JWT — les fuites de données sont attribuables à la session source
 
 ---
 
-## License
+## Limites honnêtes
+
+**Un bot tournant sur un vrai appareil physique passe tout.**  
+Un vrai MacBook faisant tourner Puppeteer a un vrai GPU Apple, un vrai DPR, une vraie cadence rAF. Le système ne peut pas le distinguer d'un humain. Cependant, louer 1 000 MacBooks pour scraper un site coûte des milliers d'euros par jour — c'est précisément le point. Prisme rend l'attaque non rentable, pas impossible.
+
+**L'attribution du filigrane nécessite une ancre de vérité.**  
+Si un scraper possède un item avec une valeur correcte connue depuis une autre source, il peut calculer le biais et dé-empoisonner les champs agrégés pour cet item. Le filigrane trace toujours la session source, et la qualité globale du dataset d'entraînement est dégradée.
+
+**Le stockage est en mémoire.**  
+Les sessions, la réputation et les événements sont dans des Maps Node.js — ils se réinitialisent au redémarrage et ne se partagent pas entre instances. Pour la production multi-instance, remplacer `sessionStore.js`, `reputation.js` et `visitors.js` par Redis.
+
+**La seule barrière plus haute :** authentification + vérification d'identité/paiement + limitation par compte + conditions légales. Ça augmente la barre substantiellement — mais ça change aussi le produit.
+
+---
+
+## Licence
 
 MIT
