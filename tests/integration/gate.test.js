@@ -85,4 +85,10 @@ describe('Gate Prisme — contrat d\'accès Zero Bot', () => {
         assert.ok(typeof j.difficulty === 'number');
         assert.ok(typeof j.serverNonce === 'string' && j.serverNonce.length > 0);
     });
+
+    test('GET /api/noscript-entry → page "JavaScript requis" (route publique, plus 404)', async () => {
+        const r = await fetch(base + '/api/noscript-entry', { headers: { 'user-agent': BROWSER } });
+        assert.equal(r.status, 200);
+        assert.match(await r.text(), /JavaScript/i);
+    });
 });

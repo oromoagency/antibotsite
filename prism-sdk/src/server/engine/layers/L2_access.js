@@ -48,31 +48,44 @@ const SUSPECT_IP_PENALTY = _T.suspectIp;
 const ASN_PENALTY        = _T.asnBlacklist;
 const ASN_BLACKLIST      = new Set(_T.blacklistedAsns);
 
-// Plages CIDR datacenter représentatives. Sous-ensemble volontairement court :
-// en production, charger les listes publiées (AWS ip-ranges.json, GCP, Azure...).
-// Un utilisateur résidentiel/mobile légitime ne provient pas de ces plages.
+// Plages CIDR datacenter/hébergeur. Liste curée des principaux fournisseurs cloud :
+// un utilisateur résidentiel/mobile légitime ne provient JAMAIS de ces plages.
+// Note : pénalité MEDIUM + corroboration obligatoire (verdict.js) → un faux match
+// occasionnel ne bloque jamais à lui seul. Pour une couverture exhaustive en prod,
+// charger une base type MaxMind GeoIP2 / IPinfo (ASN type = hosting) ou les
+// ip-ranges.json publiés (AWS, GCP, Azure, OCI…).
 const DATACENTER_CIDRS = [
-    ['3.0.0.0', 8],       // AWS
-    ['13.32.0.0', 12],    // AWS / CloudFront
-    ['18.32.0.0', 11],    // AWS
-    ['52.0.0.0', 8],      // AWS
-    ['34.0.0.0', 8],      // GCP
-    ['35.180.0.0', 14],   // GCP (europe)
+    // ─── AWS ───────────────────────────────────────────────
+    ['3.0.0.0', 8], ['13.32.0.0', 12], ['15.177.0.0', 16], ['18.32.0.0', 11],
+    ['52.0.0.0', 8], ['54.64.0.0', 11], ['99.77.0.0', 16],
+    // ─── GCP ───────────────────────────────────────────────
+    ['34.0.0.0', 8], ['35.180.0.0', 14], ['35.190.0.0', 17], ['104.196.0.0', 14],
+    ['130.211.0.0', 16], ['146.148.0.0', 17],
     // Plages dédiées Googlebot — reverse DNS *.googlebot.com / *.google.com vérifié.
     // Source : developers.google.com/search/apis/ipranges/googlebot.json
-    ['66.249.64.0', 19],  // Googlebot principal
-    ['66.249.80.0', 20],  // Googlebot (bloc étendu)
-    ['74.125.0.0', 16],   // Google infrastructure (WRS, fetch)
-    ['209.85.128.0', 17], // Google transit / Web Rendering Service
-    ['20.0.0.0', 8],      // Azure
-    ['40.64.0.0', 10],    // Azure
-    ['104.16.0.0', 12],   // Cloudflare (104.16-31.x.x)
-    ['172.64.0.0', 13],   // Cloudflare (172.64-71.x.x — bots proxiant via CF Workers/Tunnel)
-    ['162.158.0.0', 15],  // Cloudflare (162.158-159.x.x)
-    ['157.230.0.0', 16],  // DigitalOcean
-    ['159.65.0.0', 16],   // DigitalOcean
-    ['51.15.0.0', 16],    // Scaleway / OVH
-    ['95.216.0.0', 15],   // Hetzner
+    ['66.249.64.0', 19], ['66.249.80.0', 20], ['74.125.0.0', 16], ['209.85.128.0', 17],
+    // ─── Azure ─────────────────────────────────────────────
+    ['20.0.0.0', 8], ['40.64.0.0', 10], ['13.64.0.0', 11], ['104.40.0.0', 13],
+    ['137.116.0.0', 16], ['168.61.0.0', 16],
+    // ─── Cloudflare (bots proxiant via Workers/Tunnel) ─────
+    ['104.16.0.0', 12], ['172.64.0.0', 13], ['162.158.0.0', 15],
+    // ─── DigitalOcean ──────────────────────────────────────
+    ['157.230.0.0', 16], ['159.65.0.0', 16], ['138.197.0.0', 16], ['146.190.0.0', 16],
+    ['165.227.0.0', 16], ['167.71.0.0', 16], ['161.35.0.0', 16],
+    // ─── OVH / Scaleway ────────────────────────────────────
+    ['51.15.0.0', 16], ['51.38.0.0', 16], ['51.68.0.0', 16], ['137.74.0.0', 16],
+    ['145.239.0.0', 16], ['167.114.0.0', 16],
+    // ─── Hetzner ───────────────────────────────────────────
+    ['95.216.0.0', 15], ['88.198.0.0', 16], ['116.202.0.0', 15], ['135.181.0.0', 16],
+    ['5.75.0.0', 16],
+    // ─── Linode / Akamai ───────────────────────────────────
+    ['45.33.0.0', 16], ['45.79.0.0', 16], ['139.162.0.0', 16], ['172.104.0.0', 15],
+    // ─── Vultr ─────────────────────────────────────────────
+    ['45.32.0.0', 16], ['108.61.0.0', 16], ['149.28.0.0', 16],
+    // ─── Oracle Cloud ──────────────────────────────────────
+    ['129.146.0.0', 16], ['132.145.0.0', 16], ['150.136.0.0', 16],
+    // ─── Alibaba Cloud ─────────────────────────────────────
+    ['47.74.0.0', 15], ['8.208.0.0', 12],
 ];
 
 // Conversion IPv4 -> entier par arithmétique (évite les pièges du bitwise 32 bits signé).

@@ -37,6 +37,7 @@ function PrismeShield(options = {}) {
     router.get('/api/challenge-config', gatewayController.getChallengeConfig);
     router.post('/api/verify-challenge', gatewayController.verifyChallenge);
     router.post('/api/feedback-invisible', gatewayController.recordSilentFeedback);
+    router.get('/api/noscript-entry', gatewayController.noscriptEntry);
 
     // Tracking Routes
     router.post('/api/track/event', trackingController.recordEvent);

@@ -22,6 +22,7 @@ const verdict       = require('../policy/verdict');
 const posture       = require('../policy/posture');
 const reputation    = require('../store/reputation');
 const events        = require('../store/events');
+const eventLog      = require('../store/eventLog');
 const { usedNonces } = require('../store/nonces');
 const crypto = require('crypto');
 const sessionStore = require('../antibot/session/sessionStore');
@@ -292,6 +293,29 @@ exports.verifyChallenge = async (req, res) => {
     console.log(`[VALIDATION_PASSED] Reality: ${reality} | Suspicion: ${prismeSession.suspicion} | IP: ${ip}`);
 
     res.json({ success: true, suspicion: parseFloat(v.suspicion.toFixed(2)), score: v.score });
+};
+
+// GET /api/noscript-entry — atteint UNIQUEMENT via le <meta refresh> du <noscript>.
+// Donc : client sans JavaScript. Un humain réel exécute JS ; un client sans JS ne peut
+// de toute façon pas résoudre le PoW. On JOURNALISE (observabilité) sans bannir
+// (FP-safe : un humain qui a désactivé JS ne doit pas être puni), et on sert une page
+// sobre « JavaScript requis » — aucune révélation que c'est un piège.
+exports.noscriptEntry = (req, res) => {
+    eventLog.record({
+        type:      'noscript_entry',
+        ip:        req.ip,
+        userAgent: req.headers['user-agent'] || '',
+        url:       '/api/noscript-entry',
+    });
+    res.status(200).type('html').send(
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
+        '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">' +
+        '<title>JavaScript requis</title></head>' +
+        '<body style="margin:0;font-family:system-ui,sans-serif;background:#0a0f1e;color:#e2e8f0;' +
+        'display:flex;align-items:center;justify-content:center;height:100vh;text-align:center">' +
+        '<p style="max-width:28rem;line-height:1.6">Ce service nécessite JavaScript pour vérifier votre navigateur.<br>' +
+        'Veuillez l\'activer puis recharger la page.</p></body></html>'
+    );
 };
 
 exports.recordSilentFeedback = (req, res) => {
