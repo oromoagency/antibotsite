@@ -5,7 +5,7 @@ const config    = require('../config');
 const visitors  = require('../store/visitors');
 const eventLog  = require('../store/eventLog');
 const telegram  = require('./telegramController');
-const { computeHeat, computeEntropyFromDeltas } = require('../../prism-sdk/src/server/suspicion');
+const { computeHeat, computeEntropyFromDeltas } = require('../../suspicion');
 
 // --- Validation token admin (timing-safe) ---
 const tokenValid = (supplied) => {

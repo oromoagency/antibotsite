@@ -2,59 +2,8 @@ const express = require('express');
 const router  = express.Router();
 const config  = require('../config');
 
-const validationController = require('../controllers/validationController');
-const adminController      = require('../controllers/adminController');
-const trackingController   = require('../controllers/trackingController');
-const telegramController   = require('../controllers/telegramController');
-const L7_session           = require('../layers/L7_session');
-const antibotEntry         = require('../antibot/middleware/antibotEntry');
-const { refract, currentEpoch } = require('../../prism-sdk/src/server/refractor');
 const { getSuspicion, getSessionSeed, getLane } = require('../middlewares/prismAdapter');
-const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
-const honeypot = require('../../prism-sdk/src/server/honeypot');
-
-// ─── Routes publiques (avant tout gate) ───────────────────────────────────────
-router.get('/challenge-config',    validationController.getChallengeConfig);
-router.post('/verify-challenge',   validationController.verifyChallenge);
-router.post('/feedback-invisible', validationController.recordSilentFeedback);
-router.post('/track/event',        trackingController.recordEvent);
-router.post('/auth/login',         trackingController.recordLoginAttempt);
-router.post('/auth/register',      trackingController.recordRegister);
-
-// La voie sans JS a été supprimée (Zero Bot Mode strict).
-// Un client sans JavaScript ne peut plus contourner le PoW.
-
-// ─── Honeypot invisible ───────────────────────────────────────────────────────
-router.use('/__internal/v2/stats', honeypot.honeypotTrapMiddleware);
-
-// ─── Attacher la session causal à req.visitor (Zero Bot pipeline) ─────────────
-// Positionné ICI (après les routes publiques) pour que challenge-config et
-// verify-challenge ne soient pas ralentis par la création de session inutile.
-router.use(antibotEntry);
-
-// ─── Gate API : session humaine validée requise ───────────────────────────────
-// Deux chemins valides :
-//   1. human_auth_token JWT valide (posé par verify-challenge après PoW réussi)
-//   2. req.visitor.humanValidated (session causal si pipeline actif)
-// Exception : token admin valide passe directement.
-const requireHumanApi = (req, res, next) => {
-    // Admin bypass — vérifie x-admin-token avant tout
-    const adminToken = req.headers['x-admin-token'];
-    if (adminToken && config.ADMIN_TOKEN && adminToken === config.ADMIN_TOKEN) {
-        return next();
-    }
-
-    // Chemin 1 : JWT L7 posé par verifyChallenge (flux principal)
-    const jwtResult = L7_session.verifyToken(req.cookies['human_auth_token']);
-    if (jwtResult.valid) return next();
-
-    // Chemin 2 : session causal (fallback si antibotEntry a chargé la session)
-    if (req.visitor?.humanValidated) return next();
-
-    return res.status(401).json({ error: 'human_session_required' });
-};
-
-router.use(requireHumanApi);
+const { refract, currentEpoch, honeypot, frictionMs } = require('../../prism-sdk');
 
 // ─── Politique de réfraction des données de démo ─────────────────────────────
 // Doctrine Prisme : je ne renvoie JAMAIS data. Je renvoie refract(data, seed).
@@ -153,13 +102,5 @@ router.get('/demo/v1/users', async (req, res) => {
         : data;
     res.json({ data: payload, meta: { total: data.length } });
 });
-
-// ─── Admin dashboard ──────────────────────────────────────────────────────────
-router.get('/admin/stats',        adminController.getStats);
-router.get('/admin/report',       adminController.getFullReport);
-router.get('/admin/visitors',     trackingController.getVisitors);
-router.get('/admin/visitor/:id',  trackingController.getVisitorById);
-router.get('/admin/logs',         trackingController.getLogs);
-router.post('/admin/telegram',    telegramController.sendReport);
 
 module.exports = router;

@@ -4,14 +4,17 @@ const crypto   = require('crypto');
 const config   = require('../config');
 const visitors = require('../store/visitors');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
-if (!BOT_TOKEN || !CHAT_ID) {
+const getBotToken = () => config.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+const getChatId = () => config.TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+
+if (!getBotToken() || !getChatId()) {
     console.warn('[TELEGRAM] TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID absent — notifications désactivées.');
 }
 
 // --- Envoi d'un message Telegram ---
 const sendMessage = async (text) => {
+    const BOT_TOKEN = getBotToken();
+    const CHAT_ID = getChatId();
     if (!BOT_TOKEN || !CHAT_ID) return false;
     const truncated = text.length > 4096 ? text.slice(0, 4090) + '...' : text;
     try {

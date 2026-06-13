@@ -14,7 +14,7 @@ const events   = require('../store/events');
 const visitors = require('../store/visitors');
 const eventLog = require('../store/eventLog');
 const sessionStore = require('../antibot/session/sessionStore');
-const { getBlacklistStats } = require('../../prism-sdk/src/server/honeypot');
+const { getBlacklistStats } = require('../../honeypot');
 
 const tokenValid = (supplied) => {
     if (typeof supplied !== 'string' || supplied.length === 0) return false;

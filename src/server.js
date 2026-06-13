@@ -5,8 +5,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const config = require('./config');
 
-const L1_network = require('./layers/L1_network');
-
+const { PrismeShield } = require('../prism-sdk');
 const apiRoutes = require('./routes/api');
 const webRoutes = require('./routes/web');
 
@@ -99,9 +98,14 @@ app.use(express.json({ limit: '128kb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// L1 — signaux réseau sur toutes les routes (lecture seule, ne bloque pas)
-// Dépose req.l1Signals { score, reasons, declarative } consommé par verifyChallenge.
-app.use(L1_network.analyze);
+// Déployer le bouclier Prisme sur toute l'application
+app.use(PrismeShield({
+    adminToken: config.ADMIN_TOKEN,
+    challengeDifficulty: config.CHALLENGE_DIFFICULTY,
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    telegramChatId: process.env.TELEGRAM_CHAT_ID,
+    zeroBotMode: true
+}));
 
 app.use('/api', apiRoutes);
 app.use('/', webRoutes);

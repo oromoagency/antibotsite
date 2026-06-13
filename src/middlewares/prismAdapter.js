@@ -4,7 +4,7 @@
  * Source de vérité unique : req.visitor — aucun ancien token lu ici.
  */
 
-const { frictionMs } = require('../../prism-sdk/src/server/suspicion');
+const { frictionMs } = require('../../prism-sdk');
 
 const chooseLane = (canRender) => (canRender ? 'rich' : 'accessible');
 

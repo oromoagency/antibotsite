@@ -1,8 +1,9 @@
 const refractor = require('./refractor');
-const suspicion = require('./suspicion');
 const honeypot = require('./honeypot');
+const suspicion = require('./suspicion');
 const pow = require('./pow');
 const revelation = require('./revelation');
+const { PrismeShield } = require('./engine');
 
 /**
  * Middleware Prisme Express
@@ -44,5 +45,8 @@ module.exports = {
     ...honeypot,
     ...pow,
     ...revelation,
-    prismMiddleware
+    prismMiddleware,
+    PrismeShield,
+    store: require('./engine').store,
+    sessionStore: require('./engine').sessionStore
 };

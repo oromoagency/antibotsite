@@ -22,7 +22,7 @@
 // plus jamais déclencher de bannissement à lui seul.
 
 const { verdict: T } = require('../config/tuning');
-const { toSuspicion } = require('../../prism-sdk/src/server/suspicion');
+const { toSuspicion } = require('../../suspicion');
 const TRUST_THRESHOLD    = T.trustThreshold;
 const STRIKE_THRESHOLD   = T.strikeThreshold;
 const SIGNIFICANT_SIGNAL = T.significantSignal;
