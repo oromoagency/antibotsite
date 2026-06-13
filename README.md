@@ -93,6 +93,22 @@ Prisme intègre une protection complète contre les captures d'écran, qu'elles 
 - **Brouillage SVG (Bots suspects) :** Si un bot passe inaperçu mais est dégradé (`watermarked` ou `decoy`), le Frontend applique un filtre SVG de distorsion (déplacement de sous-pixels). L'interface reste esthétique pour un humain (Glassmorphism), mais une IA/OCR lira des lettres disloquées et des chiffres faux.
 - **DRM Anti-Capture (Humains) :** Le code intègre une écoute active des raccourcis claviers (Imprim-Écran, Windows+Shift+S, Cmd+Shift+4) et de l'outil d'impression (Ctrl+P). Si un humain tente une capture, l'écran devient instantanément noir et l'utilisateur est redirigé vers Google. De plus, la page disparaît si le navigateur perd le focus.
 
+### 5. Révélation Progressive des Données (Anti-Extraction JSON)
+Le prix et les données sensibles ne sont **jamais transmis en entier dans le JSON**. La valeur est fragmentée sur deux canaux :
+- **Canal JSON** : la partie entière du prix (`49`)
+- **Canal CSS** : les centièmes dans une variable CSS (`--pr-price-0: 99` → `0.99`)
+
+Un script Python qui lit le JSON obtient `49`, pas `49.99`. Seul un navigateur qui exécute le CSS et utilise l'assembleur client (`assembler.js`) reconstitue le prix exact. Voir `prism-sdk/src/server/revelation.js` et `fragmentField()`.
+
+### 6. Pièges HTML Multi-Couches (Frontend Honeypots)
+La page visible contient 4 pièges invisibles pour les humains, mais actionnables par les bots :
+- **Injection de prompt LLM** : texte invisible ciblant les IA qui lisent le DOM (`GPT-4V`, `Claude`...)
+- **Lien fantôme** : `<a>` hors écran (`left: -9999px`) cliqué automatiquement par les crawlers
+- **Formulaire autofill** : faux formulaire de connexion rempli automatiquement par les credential stuffers
+- **Bouton ghost 6×6 px** : pixel quasi-invisible en coin supérieur gauche, capté par les robots de clic aléatoire
+
+Tout clic sur `/api/feedback-invisible` est tracé et marque la session comme hostile.
+
 ---
 
 ## ⚙️ Architecture du Projet

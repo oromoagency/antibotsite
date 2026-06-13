@@ -193,6 +193,32 @@ Au lieu de renvoyer une erreur 403, Prisme renvoie des données réfractées. C'
 - **Watermarking (Traçabilité)** : Prisme modifie légèrement un texte (synonymes invisibles) en le liant au `SessionSeed` du visiteur. Si un concurrent publie votre base de données en ligne, Prisme peut vous prouver mathématiquement de quelle session exacte provient la fuite.
 - **Leurre (Decoy)** : Si le bot est confondu par le Honeypot, Prisme ne répond plus la vraie donnée mais génère un JSON totalement fictif mais structurellement valide.
 
+### Révélation Progressive (`fragmentField`)
+
+`fragmentField` fragmente un champ numérique sur **deux canaux** : la partie entière reste dans le JSON, les centièmes partent dans une variable CSS. Un extracteur JSON naïf ne voit que l'entier (`49`), jamais la valeur exacte (`49.99`).
+
+```javascript
+const { refract, currentEpoch, fragmentField } = require('./prism-sdk');
+
+// Après réfraction des données
+const refracted = refract(rows, policy, seed, currentEpoch());
+
+// Fragmenter le champ 'price'
+const { rows: fragmented, styles: revealStyles } = fragmentField(refracted, 'price');
+// fragmented[i].price    = partie entière (ex: 49)
+// fragmented[i].priceVar = '--pr-price-0' (nom de la variable CSS)
+// revealStyles           = ':root{--pr-price-0:99;--pr-price-1:0;}' (à injecter en <style>)
+
+res.json({ data: fragmented, revealStyles });
+```
+
+Côté client (navigateur), injectez `revealStyles` dans un `<style>`, puis assemblez :
+```javascript
+// base + CSS_var/100 = valeur exacte
+const cents = parseInt(getComputedStyle(document.documentElement).getPropertyValue(row.priceVar), 10) || 0;
+const price = (row.price + cents / 100).toFixed(2);
+```
+
 ---
 
 ## 🎛 Dashboard d'Observabilité
