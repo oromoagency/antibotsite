@@ -82,14 +82,15 @@ Prisme ne regarde pas seulement l'adresse IP. Il vérifie la **causalité** des 
 - **Biométrie Comportementale** : Analyse des courbes de Bézier de la souris, des temps de vol entre les touches du clavier, et détection des injections d'événements synthétiques (DevTools Protocol / Puppeteer).
 
 ### 3. L'Univers Genèse (Poisoning des données)
-Si un bot est trop intelligent pour être bloqué de front (ex: "Click-farm" humain transférant la session à un script), Prisme bascule la session dans une réalité `watermarked` (Filigranée) ou `poisoned` (Empoisonnée).
-- Les données retournées par vos API JSON seront mathématiquement modifiées.
-- Si le bot vole le `Prix` ou les `Statistiques`, il vole des fausses données. Son client prendra des décisions sur des informations corrompues.
+Si un bot est trop intelligent pour être bloqué de front (ex: "Click-farm" humain transférant la session à un script), Prisme bascule la session dans une réalité `watermarked` (filigranée, traçable) ou `decoy` (leurre, agrégats fortement empoisonnés).
+- Les champs `aggregate` (stats, compteurs) sont décalés proportionnellement à leur grandeur — invisible comme bruit, mais fausse toute moyenne. Le poison est déterministe par (item, époque) : la moyenne inter-sessions ne l'annule pas.
+- Les champs `cosmetic` (descriptions) reçoivent un filigrane par session — si les données fuitent, on retrouve la session source.
+- Les champs `actionable` (prix, SKU) restent **exacts** : la doctrine trace/empoisonne les agrégats, elle ne ment pas sur les valeurs contractuelles.
 
 ### 4. Brouillage OCR & DRM Anti-Screenshot (Protection Ultime)
 Prisme intègre une protection complète contre les captures d'écran, qu'elles soient réalisées par un humain ou par un bot (ex: pour lire le site avec GPT-4V ou un OCR) :
-- **Blackout UI (Bots) :** Si un bot échoue à la validation `Zero Bot Mode` (erreur 403), le voile de chargement ne se lève jamais. L'écran devient définitivement noir avec un message rouge massif **ACCESS DENIED**. Le bot ne pourra capturer qu'une erreur.
-- **Brouillage SVG (Bots suspects) :** Si un bot passe inaperçu mais est suspecté (`watermarked`), le Frontend applique un filtre SVG de Distorsion (déplacement de sous-pixels). L'interface reste esthétique pour un humain (Glassmorphism), mais une IA lira des lettres disloquées et des chiffres totalement faux.
+- **Voile de chargement & éjection (Bots) :** Un écran opaque masque le contenu dès le chargement ; il ne se lève qu'au premier geste humain (souris, scroll, toucher, clavier), avec un repli automatique à 3 s. Un bot qui échoue la validation `Zero Bot Mode` (403 / Mur de Fer) est **instantanément redirigé vers Google** — il ne capture rien d'exploitable.
+- **Brouillage SVG (Bots suspects) :** Si un bot passe inaperçu mais est dégradé (`watermarked` ou `decoy`), le Frontend applique un filtre SVG de distorsion (déplacement de sous-pixels). L'interface reste esthétique pour un humain (Glassmorphism), mais une IA/OCR lira des lettres disloquées et des chiffres faux.
 - **DRM Anti-Capture (Humains) :** Le code intègre une écoute active des raccourcis claviers (Imprim-Écran, Windows+Shift+S, Cmd+Shift+4) et de l'outil d'impression (Ctrl+P). Si un humain tente une capture, l'écran devient instantanément noir et l'utilisateur est redirigé vers Google. De plus, la page disparaît si le navigateur perd le focus.
 
 ---
@@ -99,11 +100,10 @@ Prisme intègre une protection complète contre les captures d'écran, qu'elles 
 ```text
 antibotsite/
 ├── prism-sdk/                  # Le SDK du Moteur Prisme (Le Cœur)
-│   ├── index.js                # Point d'entrée (PrismeShield)
-│   ├── package.json            # Dépendances internes du SDK
-│   └── src/                    
-│       ├── server/engine/      # Logique des 7 couches (Réseau, Hardware, Biométrie...)
-│       └── browser/            # Script injecté côté client (Collecte biométrique)
+│   ├── package.json            # main → src/server/index.js
+│   └── src/
+│       ├── server/             # Moteur : engine/ (7 couches), refractor, honeypot, PrismeShield
+│       └── client/             # Script navigateur (collecte biométrique, PoW solver)
 ├── src/                        # Votre Application Web
 │   ├── server.js               # Serveur Express (Intégration du SDK)
 │   ├── config/                 # Configuration globale (Clés secrètes)

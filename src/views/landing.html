@@ -770,8 +770,9 @@
                 const tbody = document.getElementById('prism-table-body');
                 const tableContainer = tbody.closest('.prism-table');
                 
-                // Activer le Brouillage OCR si la réalité est modifiée
-                if (demo.reality === 'watermarked' || demo.reality === 'poisoned') {
+                // Activer le Brouillage OCR si la réalité est dégradée.
+                // (Réalités réelles : normal / watermarked / decoy / observed — jamais 'poisoned'.)
+                if (demo.reality === 'watermarked' || demo.reality === 'decoy') {
                     tableContainer.classList.add('ocr-jamming');
                 } else {
                     tableContainer.classList.remove('ocr-jamming');

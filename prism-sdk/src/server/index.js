@@ -19,11 +19,12 @@ function prismMiddleware(policy) {
             // 1. Identifier la session (simplifié)
             const seed = req.cookies?.prism_seed || req.headers['x-prism-seed'] || 'anonymous';
             
-            // 2. Vérifier si c'est un bot confirmé (Honeypot)
+            // 2. Bot confirmé (honeypot) : poison AGRESSIF + leurre, SANS jamais de
+            //    marqueur révélateur. (Bug corrigé : on ajoutait `_poisoned: true`, ce qui
+            //    signalait au bot que sa donnée était fausse — auto-sabotage.)
             if (honeypot.isBlacklisted(seed)) {
-                // Poison total : on génère un faux data plausible mais complètement faux
-                // Dans une vraie implémentation, on ferait un fuzzing complet de `data`
-                return originalJson.call(this, { ...data, _poisoned: true });
+                const poisoned = refractor.refract(data, policy, seed, undefined, { poisonFactor: 8 });
+                return originalJson.call(this, honeypot.injectHoneypot(poisoned, seed));
             }
 
             // 3. Réfraction classique (Jitter & Watermark)
