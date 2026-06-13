@@ -269,7 +269,7 @@ const RULES = [
         }
     },
 
-    // ─── Règle 13 : Anomalie biométrique (L6) ─────────────────────────────────
+    // ─── Règle 13 : Anomalie biométrique majeure (L6) ─────────────────────────
     {
         id: 'biometric_anomaly',
         evaluate: (session) => {
@@ -277,8 +277,22 @@ const RULES = [
             if (bioFacts.length > 0) {
                 return createContradiction(
                     'biometric_anomaly',
-                    'Mouse/Keyboard interaction is mathematically robotic or absent',
-                    'high', ['biometrics', 'intent'], 'human_interaction', bioFacts.map(f => f.id)
+                    'Biometric interactions are highly unnatural',
+                    'high', ['interaction', 'human'], 'human_interaction', bioFacts.map(f => f.id)
+                );
+            }
+            return null;
+        }
+    },
+    {
+        id: 'synthetic_biometrics',
+        evaluate: (session) => {
+            const bioFacts = session.facts.filter(f => f.name === 'synthetic_biometrics');
+            if (bioFacts.length > 0) {
+                return createContradiction(
+                    'synthetic_biometrics',
+                    'Biometric interactions are mathematically synthetic (teleportation, straight lines)',
+                    'critical', ['interaction', 'automation'], 'human_interaction', bioFacts.map(f => f.id)
                 );
             }
             return null;

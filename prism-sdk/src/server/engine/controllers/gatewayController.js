@@ -198,7 +198,9 @@ exports.verifyChallenge = async (req, res) => {
     // throttling réseau, RFP activé → faux positifs fréquents. Seuil : ≤ -40.
     if (autoRaw.score <= -40) addFact('automation_anomaly', { reasons: autoRaw.reasons });
     if (hwRaw.score < 0) addFact('hardware_anomaly', { reasons: hwRaw.reasons });
-    if (bio.score < 0) addFact('biometric_anomaly', { reasons: bio.reasons });
+    
+    if (bio.score <= -60) addFact('synthetic_biometrics', { reasons: bio.reasons });
+    else if (bio.score < 0) addFact('biometric_anomaly', { reasons: bio.reasons });
 
     // --- Évaluation Prisme Causal (Zero Bot Mode) ---
     const newContradictions = coherenceGraph.evaluateSession(prismeSession);

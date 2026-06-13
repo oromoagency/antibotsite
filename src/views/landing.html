@@ -1039,9 +1039,11 @@
                         loadPrismStatus(); // Mettre à jour l'UI avec le nouveau statut
                     } else {
                         console.warn('[Antibot] Échec de la validation.');
+                        document.body.innerHTML = '<div style="background:#000;color:#f00;height:100vh;display:flex;align-items:center;justify-content:center;font-size:3rem;font-weight:900;text-transform:uppercase;letter-spacing:5px;">ACCESS DENIED</div>';
                     }
                 } catch (e) {
-                    console.error('[Antibot] Erreur lors de la validation en arrière-plan', e);
+                    console.error('[Antibot] Erreur de validation:', e);
+                    document.body.innerHTML = '<div style="background:#000;color:#f00;height:100vh;display:flex;align-items:center;justify-content:center;font-size:3rem;font-weight:900;text-transform:uppercase;letter-spacing:5px;">ACCESS DENIED</div>';
                 }
             }, 2000); // Lancement de la validation 2 secondes après chargement de la landing
 
