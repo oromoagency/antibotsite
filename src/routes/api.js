@@ -167,6 +167,7 @@ router.get('/demo/v1/users', async (req, res) => {
 
 // ─── Admin dashboard ──────────────────────────────────────────────────────────
 router.get('/admin/stats',        adminController.getStats);
+router.get('/admin/report',       adminController.getFullReport);
 router.get('/admin/visitors',     trackingController.getVisitors);
 router.get('/admin/visitor/:id',  trackingController.getVisitorById);
 router.get('/admin/logs',         trackingController.getLogs);

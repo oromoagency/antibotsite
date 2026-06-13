@@ -1,6 +1,35 @@
+# ── Dépendances ──────────────────────────────────────────────────────────────
 node_modules/
+
+# ── Variables d'environnement ─────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
+
+# ── Données persistantes runtime (régénérées au démarrage) ───────────────────
+data/
+
+# ── Artéfacts d'audit (générés, pas du code source) ──────────────────────────
+artifacts/
+artifacts-har/
+artifacts-validated/
+redteam/report-data.json
+redteam/report.html
+
+# ── Scripts one-shot à la racine (outils ad-hoc, non production) ─────────────
+run-20-agents.js
+run-validated-audit.js
+run-validated-har.js
+test-20-bots.js
+analyze-report.js
+simulate-bots.js
+add_meta.js
+TESTING_INSTRUCTIONS.md
+
+# ── Fichiers proxy (peuvent contenir des credentials) ────────────────────────
+proxies.json
+proxies.example.json
+
+# ── Fichiers de dev locaux ────────────────────────────────────────────────────
 admin_live.html
 test-tg.js

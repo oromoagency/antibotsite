@@ -192,6 +192,8 @@
     }
     .btn-telegram { background: rgba(6,182,212,0.1); color: var(--cyan); }
     .btn-telegram:hover { background: rgba(6,182,212,0.2); }
+    .btn-download { background: rgba(99,102,241,0.1); color: var(--accent2); }
+    .btn-download:hover { background: rgba(99,102,241,0.2); }
     .btn-logout { background: rgba(239,68,68,0.08); color: var(--text-muted); }
     .btn-logout:hover { background: rgba(239,68,68,0.15); color: var(--red); }
 
@@ -594,6 +596,9 @@
     <button class="btn-sidebar btn-telegram" onclick="sendTelegramReport()">
       <span>✈️</span><span>Send Report</span>
     </button>
+    <button class="btn-sidebar btn-download" onclick="downloadReport()">
+      <span>⬇️</span><span>Download JSON</span>
+    </button>
     <button class="btn-sidebar btn-logout" onclick="logout()">
       <span>🚪</span><span>Logout</span>
     </button>
@@ -699,6 +704,40 @@
             <div class="posture-metric-val" id="pm-posture" style="color:var(--green)">—</div>
             <div class="posture-metric-lbl">Raw Posture</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Honeypot stats from /stats -->
+      <div class="section-header" style="margin-top:1.5rem">
+        <div>
+          <div class="section-title">Honeypot Intelligence</div>
+          <div class="section-sub">Sessions and IPs permanently blacklisted by trap endpoints</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card red">
+          <div class="stat-icon">🪤</div>
+          <div class="stat-label">Sessions Baited</div>
+          <div class="stat-value red" id="hp-seeds">—</div>
+          <div class="stat-delta">Unique session seeds trapped</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon">🔒</div>
+          <div class="stat-label">IPs Blacklisted</div>
+          <div class="stat-value orange" id="hp-ips">—</div>
+          <div class="stat-delta">Permanently banned IPs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-label">Events Stored</div>
+          <div class="stat-value" id="hp-events">—</div>
+          <div class="stat-delta">Total event log entries</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" id="hp-uptime">—</div>
+          <div class="stat-delta">Seconds since last restart</div>
         </div>
       </div>
 
@@ -1085,6 +1124,13 @@ async function fetchOverview() {
     document.getElementById('pm-difficulty').textContent = stats.difficulty ?? '—';
     document.getElementById('pm-window5').textContent   = stats.window5min  ?? '—';
     document.getElementById('pm-lasthour').textContent  = stats.lastHour    ?? '—';
+
+    /* Honeypot stats from /stats */
+    const hp = stats.honeypot || {};
+    document.getElementById('hp-seeds').textContent  = hp.seeds  ?? '—';
+    document.getElementById('hp-ips').textContent    = hp.ips    ?? '—';
+    document.getElementById('hp-events').textContent = stats.eventsStored ?? '—';
+    document.getElementById('hp-uptime').textContent = stats.uptime != null ? stats.uptime + 's' : '—';
 
     /* Visitor stats computed from /visitors */
     const visData = await visRes.json();
@@ -1607,6 +1653,26 @@ async function sendTelegramReport() {
     const res = await fetch('/api/admin/telegram', { method: 'POST', headers: apiHeaders() });
     if (res.ok) showToast('✈️ Report sent to Telegram!', 'success');
     else showToast('Failed to send report', 'error');
+  } catch(e) { showToast('Network error', 'error'); }
+}
+
+/* ── DOWNLOAD REPORT ───────────────────────────── */
+async function downloadReport() {
+  showToast('Generating report…', 'info');
+  try {
+    const res = await fetch('/api/admin/report', { headers: apiHeaders() });
+    if (!res.ok) { showToast('Failed to generate report', 'error'); return; }
+    const blob = await res.blob();
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : 'nexapi-report.json';
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('⬇️ Report downloaded!', 'success');
   } catch(e) { showToast('Network error', 'error'); }
 }
 
