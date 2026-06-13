@@ -237,11 +237,13 @@ La valeur `suspicion` (0.0 – 1.0) est disponible sur `req.visitor.suspicion` p
 
 ---
 
-## Protection des données
+## Protection des données & L'Univers Genèse
+
+Prisme ne se contente pas de bloquer les bots, il les enferme dans ce que nous appelons **L'Univers Genèse** : un univers parallèle de fausses données généré dynamiquement. Si un bot passe la porte (Zero Bot Mode désactivé ou par du click-farming humain), il ne capture jamais la réalité.
 
 ### Moteur de réfraction
 
-Toute réponse API passe par `refract(data, policy, sessionSeed, epoch)`.
+Toute réponse API passe par `refract(data, policy, sessionSeed, epoch)`. L'affichage côté client est intrinsèquement lié à cette réfraction, ce qui rend également les **captures d'écran (Screenshots) et l'OCR totalement inutiles et périssables**.
 
 ```js
 const { refract, currentEpoch } = require('./prism-sdk/src/server/refractor');
