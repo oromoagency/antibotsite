@@ -86,11 +86,11 @@ Si un bot est trop intelligent pour être bloqué de front (ex: "Click-farm" hum
 - Les données retournées par vos API JSON seront mathématiquement modifiées.
 - Si le bot vole le `Prix` ou les `Statistiques`, il vole des fausses données. Son client prendra des décisions sur des informations corrompues.
 
-### 4. Brouillage OCR (Attaque anti-Vision IA)
-Si le bot tente de prendre une capture d'écran du site web pour utiliser l'Intelligence Artificielle (GPT-4V) ou un OCR afin de lire les chiffres :
-- Le Frontend applique un filtre SVG dynamique de brouillage (déplacement de sous-pixels).
-- L'interface reste belle et parfaitement lisible pour un humain (effet Glassmorphism "Wow Effect").
-- La machine, elle, lira des chiffres totalement erronés (les bords des lettres fusionnent ou se disloquent mathématiquement). La capture d'écran est inexploitable.
+### 4. Brouillage OCR & DRM Anti-Screenshot (Protection Ultime)
+Prisme intègre une protection complète contre les captures d'écran, qu'elles soient réalisées par un humain ou par un bot (ex: pour lire le site avec GPT-4V ou un OCR) :
+- **Blackout UI (Bots) :** Si un bot échoue à la validation `Zero Bot Mode` (erreur 403), le voile de chargement ne se lève jamais. L'écran devient définitivement noir avec un message rouge massif **ACCESS DENIED**. Le bot ne pourra capturer qu'une erreur.
+- **Brouillage SVG (Bots suspects) :** Si un bot passe inaperçu mais est suspecté (`watermarked`), le Frontend applique un filtre SVG de Distorsion (déplacement de sous-pixels). L'interface reste esthétique pour un humain (Glassmorphism), mais une IA lira des lettres disloquées et des chiffres totalement faux.
+- **DRM Anti-Capture (Humains) :** Le code intègre une écoute active des raccourcis claviers (Imprim-Écran, Windows+Shift+S, Cmd+Shift+4) et de l'outil d'impression (Ctrl+P). Si un humain tente une capture, l'écran devient instantanément noir et l'utilisateur est redirigé vers Google. De plus, la page disparaît si le navigateur perd le focus.
 
 ---
 

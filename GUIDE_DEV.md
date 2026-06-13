@@ -100,10 +100,8 @@ Si vous intégrez le code dans un Framework (React, Vue) :
 - Exécutez le minage Argon2id dans un Web Worker.
 - Collectez la biométrie (`mousemove`, `keydown`) en arrière-plan pendant au moins 2 secondes avant l'envoi de la payload.
 
-### B. Le Brouillage OCR (Attaque anti-Vision IA)
-
+### B. Le Brouillage OCR (Bots Suspects)
 Pour empêcher GPT-4V, Google Lens ou un algorithme OCR de lire votre site via une capture d'écran, utilisez un filtre SVG de Distorsion.
-
 1. Ajoutez ce bloc SVG en haut de votre `<body>` :
 ```html
 <svg width="0" height="0" style="position:absolute;z-index:-1;">
@@ -115,24 +113,61 @@ Pour empêcher GPT-4V, Google Lens ou un algorithme OCR de lire votre site via u
     </defs>
 </svg>
 ```
-
 2. Ajoutez la classe CSS dynamique depuis votre JavaScript :
 ```css
-.ocr-jamming {
-    filter: url(#ocr-scramble);
-    position: relative;
-}
+.ocr-jamming { filter: url(#ocr-scramble); position: relative; }
 ```
-
 3. Dans votre logique Fetch, activez le filtre si la session est suspecte :
 ```javascript
-const response = await fetch('/api/produits');
-const json = await response.json();
-
-// Note : il faut que votre API renvoie l'état "reality" au frontend
 if (json.reality === 'watermarked' || json.reality === 'poisoned') {
     document.getElementById('sensible-data-container').classList.add('ocr-jamming');
 }
+```
+
+### C. Le Blackout UI (Zero Bot Mode)
+Pour empêcher formellement les bots bloqués de voir la page, la Gateway ne lève le voile noir de chargement que si le défi est validé. Si l'API retourne une erreur 403 (Zero Bot Mode) :
+```javascript
+const data = await res.json();
+if (!data.success) {
+    // Le voile ne se lève jamais, on affiche un message pénalisant
+    document.body.innerHTML = '<div style="background:#000;color:#f00;height:100vh;">ACCESS DENIED</div>';
+}
+```
+
+### D. DRM Anti-Screenshot (Protection contre le vol manuel)
+Pour bloquer les voleurs humains qui utilisent les raccourcis de capture d'écran, ajoutez ce script auto-exécutable à la fin de votre `<body>` :
+```html
+<script>
+(function() {
+    // 1. Bloquer l'impression (Ctrl+P / Cmd+P)
+    window.addEventListener('beforeprint', () => {
+        document.body.style.display = 'none';
+        window.location.href = 'https://www.google.com';
+    });
+
+    // 2. Détection des raccourcis clavier
+    document.addEventListener('keydown', (e) => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const isPrintScreen = e.key === 'PrintScreen' || e.keyCode === 44;
+        const isWinSnip = e.metaKey && e.shiftKey && (e.key === 's' || e.key === 'S');
+        const isMacSnip = isMac && e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5');
+        const isPrintShortcut = (e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P');
+
+        if (isPrintScreen || isWinSnip || isMacSnip || isPrintShortcut) {
+            e.preventDefault();
+            document.body.innerHTML = '<div style="background:#000;height:100vh;width:100vw;"></div>';
+            window.location.href = 'https://www.google.com';
+        }
+    });
+
+    // 3. Dissimulation lors de la perte de focus (ouverture de l'outil OS de capture)
+    window.addEventListener('blur', () => { document.body.style.opacity = '0'; });
+    window.addEventListener('focus', () => { document.body.style.opacity = '1'; });
+    
+    // 4. Bloquer le clic droit
+    document.addEventListener('contextmenu', e => e.preventDefault());
+})();
+</script>
 ```
 
 ---
@@ -146,7 +181,7 @@ Prisme ne se limite pas aux headers HTTP. Il analyse les contradictions entre le
 - **L3 (Proof-of-Work) :** Délai de minage Argon2id.
 - **L4 (Hardware) :** Un navigateur "Mobile" qui possède le profil `pointer: fine` (une souris) est une contradiction flagrante. Un `WebGL Renderer` de type `SwiftShader` indique un Chrome Headless.
 - **L5 (Automatisation) :** Détection de variables Puppeteer (`navigator.webdriver`), pièges CDP (Chrome DevTools Protocol).
-- **L6 (Biométrie) :** Pression de clic nulle (`pressure: 0`), Mouvements linéaires parfaits, Temps de frappe (Dwell Time) constants.
+- **L6 (Biométrie) :** Pression de clic nulle (`pressure: 0`), Mouvements linéaires parfaits, Temps de frappe (Dwell Time) constants. De plus, la règle critique `synthetic_biometrics` bloque instantanément les courbes générées algorithmiquement (ex: `ghost-cursor`) ou les trajectoires mathématiquement lisses.
 - **L7 (Session) :** Persistance JWT et suivi des rebonds.
 
 Si le moteur trouve une contradiction grave (ex: L5 Automatisé), la réalité devient **blocked**. Si les contradictions sont légères (IP suspecte + pas de souris), la session devient **watermarked**.
