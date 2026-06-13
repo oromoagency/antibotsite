@@ -341,6 +341,13 @@
             pointer-events: none;
             mix-blend-mode: overlay;
         }
+        /* Niveau 2 (decoy) : déplacement fort, plus hostile à l'OCR/IA visuelle. */
+        .ocr-jamming-heavy {
+            filter: url(#ocr-scramble-heavy);
+        }
+        /* Dislocation par glyphe (decoy) : chaque caractère est tourné/décalé. Un humain
+           lit encore (effet « lettres dansantes »), mais la segmentation OCR échoue. */
+        .gj { display: inline-block; }
 
         }
         .card {
@@ -435,12 +442,20 @@
 </head>
 <body>
     
-    <!-- Filtre Anti-OCR SVG -->
+    <!-- Filtres Anti-OCR SVG (2 niveaux, pilotés par la réalité) -->
     <svg width="0" height="0" style="position:absolute;z-index:-1;">
         <defs>
+            <!-- Niveau 1 (watermarked) : brouillage léger, reste lisible pour un humain borderline -->
             <filter id="ocr-scramble">
                 <feTurbulence type="turbulence" baseFrequency="0.25" numOctaves="1" result="noise" />
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <!-- Niveau 2 (decoy = bot/hostile confirmé) : déplacement fort + dislocation des
+                 glyphes → OCR/IA visuelle lisent des caractères faux. Humain confirmé hostile,
+                 donc dégradation agressive assumée. -->
+            <filter id="ocr-scramble-heavy">
+                <feTurbulence type="turbulence" baseFrequency="0.45 0.65" numOctaves="2" seed="7" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="5.5" xChannelSelector="R" yChannelSelector="G" />
             </filter>
         </defs>
     </svg>
@@ -771,13 +786,14 @@
                 const tbody = document.getElementById('prism-table-body');
                 const tableContainer = tbody.closest('.prism-table');
                 
-                // Activer le Brouillage OCR si la réalité est dégradée.
-                // (Réalités réelles : normal / watermarked / decoy / observed — jamais 'poisoned'.)
-                if (demo.reality === 'watermarked' || demo.reality === 'decoy') {
-                    tableContainer.classList.add('ocr-jamming');
-                } else {
-                    tableContainer.classList.remove('ocr-jamming');
-                }
+                // Brouillage OCR à 2 niveaux, piloté par la réalité (le serveur envoie
+                // demo.ocrLevel : 0 normal, 1 watermarked léger, 2 decoy lourd). Cible
+                // OCR / IA visuelle / screenshot — PAS le scraping DOM (géré par la réfraction).
+                const ocrLevel = (typeof demo.ocrLevel === 'number')
+                    ? demo.ocrLevel
+                    : (demo.reality === 'decoy' ? 2 : (demo.reality === 'watermarked' ? 1 : 0));
+                tableContainer.classList.toggle('ocr-jamming', ocrLevel >= 1);
+                tableContainer.classList.toggle('ocr-jamming-heavy', ocrLevel >= 2);
 
                 // Watermark de CAPTURE (traçabilité post-fuite) : bande déterministe rendue
                 // SOUS le tableau, en COUCHE SÉPARÉE — elle est insérée comme sibling APRÈS
@@ -826,13 +842,30 @@
                     return (row.price + cents / 100).toFixed(2) + ' €';
                 };
 
+                // Dislocation par glyphe (decoy uniquement) : chaque caractère reçoit une
+                // rotation/translation déterministe. Lisible par un humain (« lettres
+                // dansantes »), mais casse la segmentation OCR/IA sur un screenshot.
+                const jitterText = (str) => {
+                    if (ocrLevel < 2 || typeof str !== 'string') return str ?? '';
+                    let out = '';
+                    for (let i = 0; i < str.length; i++) {
+                        const ch = str[i];
+                        if (ch === ' ') { out += ' '; continue; }
+                        const rot = ((i * 37) % 13) - 6;   // [-6, +6] deg
+                        const dy  = ((i * 53) % 5) - 2;     // [-2, +2] px
+                        const esc = ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        out += `<span class="gj" style="transform:rotate(${rot}deg) translateY(${dy}px)">${esc}</span>`;
+                    }
+                    return out;
+                };
+
                 tbody.innerHTML = '';
                 for (const row of demo.data) {
                     tbody.innerHTML += `
                         <tr>
-                            <td>${row.name} <span style="color:var(--text-secondary);font-size:0.75rem">${row.region}</span></td>
+                            <td>${jitterText(row.name)} <span style="color:var(--text-secondary);font-size:0.75rem">${row.region}</span></td>
                             <td><code style="color:#a78bfa;font-size:0.8rem">${row.endpoint}</code></td>
-                            <td>${row.description}</td>
+                            <td>${jitterText(row.description)}</td>
                             <td>${(row.requests||0).toLocaleString('fr-FR')}</td>
                             <td>${row.latency_ms}ms</td>
                             <td><span style="color:#10b981;font-weight:600">${row.uptime}</span></td>

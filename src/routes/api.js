@@ -76,12 +76,18 @@ router.get('/prism/demo', async (req, res) => {
         ? (() => { const w = encodeWatermark(seed, epoch); return { css: w.css, elementId: w.elementId }; })()
         : null;
 
+    // Niveau de brouillage OCR/IA visuelle, piloté par la réalité (0 normal,
+    // 1 watermarked léger, 2 decoy lourd + dislocation des glyphes). Cible le
+    // screenshot/OCR/VLM — le scraping DOM reste neutralisé par la réfraction ci-dessus.
+    const ocrLevel = reality === 'decoy' ? 2 : (reality === 'watermarked' ? 1 : 0);
+
     res.json({
         lane:         getLane(req),
         suspicion:    parseFloat(getSuspicion(req).toFixed(2)),
         data:         payload,
         revealStyles,
         captureWatermark,
+        ocrLevel,
         reality,
     });
 });
