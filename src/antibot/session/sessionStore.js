@@ -25,8 +25,8 @@ function getSession(sessionId) {
     return session;
 }
 
-function initializeSession() {
-    const session = createSession();
+function initializeSession(id) {
+    const session = createSession(id);
     store.set(session.id, session);
     return session;
 }

@@ -237,6 +237,69 @@ const RULES = [
             return null;
         }
     },
+    // ─── Règle 11 : Anomalie d'automatisation détectée (L5) ───────────────────
+    {
+        id: 'automation_detected',
+        evaluate: (session) => {
+            const autoFacts = session.facts.filter(f => f.name === 'automation_anomaly');
+            if (autoFacts.length > 0) {
+                return createContradiction(
+                    'automation_detected',
+                    'Automation tools explicitly detected (Puppeteer, Selenium, etc.)',
+                    'critical', ['environment', 'automation'], 'automation_flag', autoFacts.map(f => f.id)
+                );
+            }
+            return null;
+        }
+    },
+
+    // ─── Règle 12 : Anomalie matérielle détectée (L4) ─────────────────────────
+    {
+        id: 'hardware_anomaly',
+        evaluate: (session) => {
+            const hwFacts = session.facts.filter(f => f.name === 'hardware_anomaly');
+            if (hwFacts.length > 0) {
+                return createContradiction(
+                    'hardware_anomaly',
+                    'Hardware fingerprint is inconsistent with a real browser (Headless/VM)',
+                    'high', ['hardware', 'environment'], 'hardware_consistency', hwFacts.map(f => f.id)
+                );
+            }
+            return null;
+        }
+    },
+
+    // ─── Règle 13 : Anomalie biométrique (L6) ─────────────────────────────────
+    {
+        id: 'biometric_anomaly',
+        evaluate: (session) => {
+            const bioFacts = session.facts.filter(f => f.name === 'biometric_anomaly');
+            if (bioFacts.length > 0) {
+                return createContradiction(
+                    'biometric_anomaly',
+                    'Mouse/Keyboard interaction is mathematically robotic or absent',
+                    'high', ['biometrics', 'intent'], 'human_interaction', bioFacts.map(f => f.id)
+                );
+            }
+            return null;
+        }
+    },
+
+    // ─── Règle 14 : Sensor Desync (Décalage temporel) ─────────────────────────
+    {
+        id: 'sensor_desync_detected',
+        evaluate: (session) => {
+            const desyncFacts = session.facts.filter(f => f.name === 'sensor_desync');
+            if (desyncFacts.length > 0) {
+                return createContradiction(
+                    'sensor_desync_detected',
+                    'Sensor timestamps are desynchronized (often caused by Ghost-Cursor/Puppeteer)',
+                    'critical', ['timing', 'hardware'], 'sensor_sync', desyncFacts.map(f => f.id)
+                );
+            }
+            return null;
+        }
+    },
 ];
 
 module.exports = { createContradiction, RULES };

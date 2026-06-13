@@ -5,11 +5,11 @@
 
 const crypto = require('crypto');
 
-function createSession() {
+function createSession(id) {
     const facts = [];
 
     return {
-        id: 'nx_' + crypto.randomBytes(24).toString('hex'),
+        id: id || 'nx_' + crypto.randomBytes(24).toString('hex'),
         internalSeed: crypto.randomBytes(32).toString('hex'), // Secret serveur
         createdAt: Date.now(),
         lastSeenAt: Date.now(),

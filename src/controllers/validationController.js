@@ -23,6 +23,10 @@ const posture       = require('../policy/posture');
 const reputation    = require('../store/reputation');
 const events        = require('../store/events');
 const { usedNonces } = require('../store/nonces');
+const crypto = require('crypto');
+const sessionStore = require('../antibot/session/sessionStore');
+const coherenceGraph = require('../antibot/coherence/coherenceGraph');
+const causalOrchestrator = require('../antibot/policy/causalOrchestrator');
 
 // Phase 9 — intelligence globale : chaque décision est JOURNALISÉE (pure
 // observation, aucune heuristique) puis la posture de flotte est réévaluée.
@@ -152,38 +156,54 @@ exports.verifyChallenge = async (req, res) => {
     // --- L6 : Biométrie comportementale ---
     const bio = tag(L6_biometrics.analyze({ mouseTrajectory, keystrokes }), 'L6-Biométrie');
 
-    // --- Verdict : agrégation + règle de corroboration (politique, pas heuristique) ---
-    const v = verdict.decide([powTagged, l1, acc, hw, auto, bio]);
-
-    // Journalisation structurée par couche — chaque ligne montre sa contribution
-    // exacte (score brut + raisons) pour un diagnostic immédiat sans décompiler les logs.
-    const logLayer = (label, result) => {
-        if (!result) return;
-        const sc = result.score ?? 0;
-        const txt = (result.reasons || []).map(r => r.replace(/^\[[^\]]+\]\s*/, '')).join(' | ') || '—';
-        console.log(`  ├─ [${label.padEnd(14)}] ${(sc >= 0 ? '+' : '') + sc} | ${txt}`);
-    };
-    console.log(`[ORCHESTRATOR] IP: ${ip} | Score: ${v.score} | Témoins: ${v.witnesses} | Verdict: ${v.allowed ? 'PASS' : v.ban ? 'BAN' : 'BLOCK'}${v.declarative ? ' (déclaratif)' : ''}`);
-    logLayer('L1-Réseau',     l1);
-    logLayer('L2-Accès',      acc);
-    logLayer('L3-PoW',        powTagged);
-    logLayer('L4-Hardware',   hw);
-    logLayer('L5-Automation', auto);
-    logLayer('L6-Biométrie',  bio);
-
-    // --- Mise à jour de la session visiteur et envoi Telegram ---
-    // (visitor et sessionId sont déjà résolus en début de pipeline)
-    // S'il n'a pas de session (bot pur qui bloque les cookies), on lui crée une fiche temporaire pour Telegram
+    // --- Prisme Causal : Conversion des couches en "Faits" pour l'Orchestrateur ---
     if (!visitor) {
         visitor = visitors.createVisitor({ ip, userAgent: req.headers['user-agent'] || 'unknown' });
     }
 
+    let prismeSession = sessionStore.getSession(visitor.id);
+    if (!prismeSession) {
+        prismeSession = sessionStore.initializeSession(visitor.id);
+        prismeSession.ipHistory.push(ip);
+        prismeSession.userAgentHistory.push(req.headers['user-agent'] || 'unknown');
+    }
+
+    const addFact = (name, value) => {
+        prismeSession.facts.push({
+            id: 'fact_' + crypto.randomBytes(4).toString('hex'),
+            name,
+            value,
+            timestamp: Date.now()
+        });
+    };
+
+    if (sensorDesync && sensorDesync.desyncMs) addFact('sensor_desync', { desyncMs: sensorDesync.desyncMs });
+    if (autoRaw.score < 0) addFact('automation_anomaly', { reasons: autoRaw.reasons });
+    if (hwRaw.score < 0) addFact('hardware_anomaly', { reasons: hwRaw.reasons });
+    if (bio.score < 0) addFact('biometric_anomaly', { reasons: bio.reasons });
+
+    // --- Évaluation Prisme Causal (Zero Bot Mode) ---
+    const newContradictions = coherenceGraph.evaluateSession(prismeSession);
+    
+    // Journalisation des contradictions
+    if (newContradictions.length > 0) {
+        console.log(`[PRISME] Contradictions détectées pour ${ip}:`);
+        newContradictions.forEach(c => console.log(`  -> [${c.severity}] ${c.title}`));
+    }
+
+    const reality = causalOrchestrator.decideReality(prismeSession);
+    
+    if (reality === 'normal') {
+        prismeSession.humanValidated = true;
+    }
+
+    sessionStore.updateSession(prismeSession);
+
+    // --- Synchronisation avec visitors.js (Dashboard Admin) ---
     visitors.updateVisitor(visitor.id, {
-        score: v.score,
-        decision: v.allowed ? 'allowed' : (v.ban ? 'blocked' : 'suspect'),
-        reasons: v.reasons,
-        // Contributions brutes de chaque couche — affichées dans le dashboard admin
-        // et utilisées pour le rapport "Copier" par visiteur.
+        score: Math.round((1.0 - prismeSession.suspicion) * 100), // Mappe la suspicion [0,1] vers un score [100,0] pour compatibilité UI
+        decision: reality === 'normal' ? 'allowed' : 'blocked',
+        reasons: prismeSession.coherence.contradictions.map(c => `[${c.severity.toUpperCase()}] ${c.title}`),
         layerScores: {
             'L1-Réseau':     l1?.score        ?? 0,
             'L2-Accès':      acc?.score       ?? 0,
@@ -193,47 +213,30 @@ exports.verifyChallenge = async (req, res) => {
             'L6-Biométrie':  bio?.score       ?? 0,
         },
     });
-    
-    // Notification Telegram uniquement pour les visiteurs suspects ou bloqués.
-    if (v.score < 80 || !v.allowed) {
-        telegram.notifySuspect(visitor).catch(() => {});
-    }
 
-    if (!v.allowed) {
-        if (v.ban) {
-            reputation.recordStrike(ip);
-            console.log(`[MUR DE FER] Bot corroboré (score ${v.score}, ${v.witnesses} couches${v.declarative ? ', déclaratif' : ''}), strike — ACCÈS REFUSÉ. IP: ${ip}`);
-        } else {
-            // Score insuffisant sans corroboration : marquer suspect et bloquer net.
-            reputation.recordSuspect(ip);
-            console.log(`[MUR DE FER] Score faible (${v.score}) — ACCÈS REFUSÉ. IP: ${ip}`);
-        }
-        recordOutcome(ip, v.ban ? 'ban' : 'suspect', v.score, v.witnesses, v.reasons, req.headers['user-agent']);
+    const v = { allowed: reality === 'normal', suspicion: prismeSession.suspicion, score: Math.round((1.0 - prismeSession.suspicion) * 100) };
+
+    if (reality === 'blocked') {
+        reputation.recordStrike(ip);
+        console.log(`[MUR DE FER] Bot bloqué par Prisme (suspicion ${prismeSession.suspicion}). IP: ${ip}`);
+        recordOutcome(ip, 'ban', v.score, prismeSession.coherence.contradictions.length, prismeSession.coherence.contradictions.map(c=>c.title), req.headers['user-agent']);
         
-        // ZÉRO CONFIANCE ABSOLUE : Mur de Fer. On coupe la connexion. Aucun token n'est émis.
-        // Le bot ne pourra jamais franchir la gateway et restera dans une boucle de rechargement.
-        return res.status(403).json({ success: false, message: 'Accès refusé. Humanité non prouvée.' });
+        return res.status(403).json({ success: false, message: 'Accès refusé. Humanité non prouvée (Zero Bot Mode).' });
     }
 
-    // --- L7 : Session ---
-    // Architecture Prisme : le token est émis pour TOUT le monde (allowed ET non-allowed).
-    // La suspicion et le sessionSeed sont encodés dans le JWT (AES-256) pour survivre
-    // aux redémarrages Render — le store RAM est volatile, le cookie ne l'est pas.
+    // --- L7 : Session (Token Opaque) ---
     usedNonces.add(nonce);
     const token = L7_session.createToken(ip, fingerprint, v.score, v.suspicion, visitor.sessionSeed);
     res.cookie('human_auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict', // anti-CSRF : le cookie n'accompagne pas les requêtes cross-site
+        sameSite: 'strict',
         maxAge: L7_session.SESSION_DURATION_MS,
     });
 
-    const outcome = v.allowed ? 'pass' : (v.ban ? 'ban' : 'suspect');
-    recordOutcome(ip, outcome, v.score, v.witnesses, v.allowed ? [] : v.reasons, req.headers['user-agent']);
-    if (v.allowed) console.log(`[VALIDATION_PASSED] Score: ${v.score}. IP: ${ip}`);
+    recordOutcome(ip, 'pass', v.score, 0, [], req.headers['user-agent']);
+    console.log(`[VALIDATION_PASSED] Reality: ${reality} | Suspicion: ${prismeSession.suspicion} | IP: ${ip}`);
 
-    // Le client reçoit toujours success:true + la suspicion pour adapter l'UX
-    // (ex: pas de redirect Google côté client — simplement recharger la page).
     res.json({ success: true, suspicion: parseFloat(v.suspicion.toFixed(2)), score: v.score });
 };
 
