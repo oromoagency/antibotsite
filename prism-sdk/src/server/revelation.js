@@ -1,51 +1,49 @@
-const crypto = require('crypto');
-
 /**
- * Fragmente une valeur numérique (ex: un prix) sur plusieurs canaux
- * pour implémenter la "Révélation Progressive".
- * 
- * @param {number} value - La valeur à fragmenter (ex: 49.99)
- * @param {string} seed - Le seed de la session
- * @returns {Object} Les fragments (JSON, CSS, et Canvas Pixel)
+ * revelation.js — Révélation Progressive
+ *
+ * Fragmente une valeur numérique sur deux canaux : la partie ENTIÈRE reste dans le
+ * JSON, la partie DÉCIMALE (centièmes) part dans une variable CSS que seul un
+ * navigateur appliquera. Un extracteur qui lit le JSON brut n'obtient que l'entier ;
+ * pour reconstituer la valeur exacte il doit exécuter le CSS + connaître l'algorithme
+ * d'assemblage (client/assembler.js : base + var/100).
+ *
+ * LIMITE HONNÊTE : si la feuille de style voyage dans la même réponse HTTP, un
+ * adversaire déterminé peut tout recombiner. Ce n'est pas un secret cryptographique —
+ * c'est une friction qui neutralise les extracteurs JSON naïfs et augmente le coût des
+ * autres. La vraie barrière reste le gate (un client sans navigateur n'arrive jamais ici).
  */
-function fragmentValue(value, seed) {
-    if (typeof value !== 'number') return { json: value };
 
-    const basePart = Math.floor(value); // ex: 49
-    const centsPart = Math.round((value - basePart) * 100); // ex: 99
-
-    // Génération d'une propriété CSS unique par seed
-    const cssVarName = `--prism-v-${seed.slice(0, 6)}`;
-    const cssStyle = `${cssVarName}: ${centsPart};`;
-
-    // Génération d'un pixel de validation RGB (canvas)
-    // On cache une checksum dans les bits faibles des couleurs
-    const checksum = (basePart + centsPart) % 255;
-    const canvasData = {
-        r: 100 + (checksum % 10),
-        g: 150 + (checksum % 10),
-        b: checksum
-    };
-
-    return {
-        json_fragment: basePart,    // Ce qui ira dans le payload JSON normal
-        css_fragment: cssStyle,     // Ce qui devra être injecté dans une balise <style>
-        css_var: cssVarName,        // Le nom de la variable pour le client
-        canvas_fragment: canvasData // Ce qui sera envoyé via WebSocket ou encodé
-    };
+// Fragmente une valeur numérique unique. Renvoie la base (entier), les centièmes,
+// le nom de variable CSS et la déclaration CSS correspondante.
+function fragmentValue(value, varName) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return { base: value, cents: 0, varName: null, cssRule: '' };
+    }
+    const base  = Math.floor(value);
+    const cents = Math.round((value - base) * 100);
+    const name  = varName || '--pr-v';
+    return { base, cents, varName: name, cssRule: `${name}:${cents}` };
 }
 
-/**
- * Middleware Express optionnel pour injecter la partie CSS de la fragmentation
- * dans le flux de réponse si la page est rendue en SSR.
- */
-function cssInjectionMiddleware(req, res, next) {
-    // Si c'est une requête API, la Révélation Progressive est gérée par le JSON 
-    // qui contient la propriété 'style' à injecter par le frontend.
-    next();
+// Fragmente le champ numérique `field` sur un jeu de lignes.
+// Renvoie { rows, styles } :
+//   - rows  : chaque ligne a `field` = partie entière, et `${field}Var` = nom de variable CSS
+//   - styles: une règle `:root{ --pr-...:NN; ... }` à injecter dans un <style> côté client
+// Le client reconstitue : valeur = row[field] + getComputedStyle(:root)[row[field+'Var']] / 100
+function fragmentField(rows, field, prefix = 'pr') {
+    if (!Array.isArray(rows)) return { rows: rows ? [rows] : [], styles: '' };
+    const decls = [];
+    const out = rows.map((row, i) => {
+        if (!row || typeof row[field] !== 'number') return row;
+        const varName = `--${prefix}-${field}-${i}`;
+        const { base, cents } = fragmentValue(row[field], varName);
+        decls.push(`${varName}:${cents}`);
+        return { ...row, [field]: base, [`${field}Var`]: varName };
+    });
+    return { rows: out, styles: decls.length ? `:root{${decls.join(';')}}` : '' };
 }
 
 module.exports = {
     fragmentValue,
-    cssInjectionMiddleware
+    fragmentField,
 };

@@ -592,10 +592,11 @@
                         <th>Requests <span class="tag-aggregate">🎲</span></th>
                         <th>Latency <span class="tag-aggregate">🎲</span></th>
                         <th>Uptime <span class="tag-actionable">🛡️</span></th>
+                        <th>Prix <span class="tag-actionable" title="Révélation progressive : entier en JSON, centièmes en CSS">🛡️🧩</span></th>
                     </tr>
                 </thead>
                 <tbody id="prism-table-body">
-                    <tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:2rem">Chargement…</td></tr>
+                    <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem">Chargement…</td></tr>
                 </tbody>
             </table>
         </div>
@@ -778,6 +779,29 @@
                     tableContainer.classList.remove('ocr-jamming');
                 }
 
+                // Révélation progressive : injecter les centièmes du prix (variables CSS)
+                // dans un <style>. Le JSON ne contient que la partie entière ; seul ce
+                // canal CSS + l'assemblage ci-dessous reconstitue le prix exact. Un
+                // extracteur JSON naïf lirait 49 au lieu de 49.99.
+                if (demo.revealStyles) {
+                    let styleEl = document.getElementById('prism-reveal');
+                    if (!styleEl) {
+                        styleEl = document.createElement('style');
+                        styleEl.id = 'prism-reveal';
+                        document.head.appendChild(styleEl);
+                    }
+                    styleEl.textContent = demo.revealStyles;
+                }
+                const assemblePrice = (row) => {
+                    if (typeof row.price !== 'number') return row.price ?? '—';
+                    let cents = 0;
+                    if (row.priceVar) {
+                        const raw = getComputedStyle(document.documentElement).getPropertyValue(row.priceVar);
+                        cents = parseInt(raw, 10) || 0;
+                    }
+                    return (row.price + cents / 100).toFixed(2) + ' €';
+                };
+
                 tbody.innerHTML = '';
                 for (const row of demo.data) {
                     tbody.innerHTML += `
@@ -788,6 +812,7 @@
                             <td>${(row.requests||0).toLocaleString('fr-FR')}</td>
                             <td>${row.latency_ms}ms</td>
                             <td><span style="color:#10b981;font-weight:600">${row.uptime}</span></td>
+                            <td style="font-weight:600">${assemblePrice(row)}</td>
                         </tr>`;
                 }
             } catch (e) {
