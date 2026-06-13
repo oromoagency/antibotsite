@@ -101,6 +101,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Déployer le bouclier Prisme sur toute l'application
 app.use(PrismeShield({
     adminToken: config.ADMIN_TOKEN,
+    secretKey: config.SECRET_KEY,
     challengeDifficulty: config.CHALLENGE_DIFFICULTY,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
