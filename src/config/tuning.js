@@ -77,6 +77,11 @@ module.exports = {
         // Une valeur > 1.0 (ex. 100 → 10000%) = bot qui envoie le mauvais format.
         // Jamais observé sur un vrai navigateur dans nos données de trafic.
         batterySpoof:    -30,
+        // Écran physique réel — détection de la présence d'un vrai périphérique d'affichage.
+        // pointer:none = aucun dispositif de pointage → headless (presque impossible légitimement).
+        // UA mobile + pointer:fine ou maxTouchPoints=0 = UA spoofé (mobile simulé sur desktop).
+        screenPointerNone:    -40,
+        screenMobileMismatch: -40,
     },
 
     // ── L5 · Automation / CDP ──────────────────────────────────────────────────

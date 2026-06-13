@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexAPI</title>
+    <title>Chargement…</title>
     <script src="/argon2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <!--
@@ -99,12 +99,11 @@
 <body>
 
 <div class="gateway-container">
-    <div class="logo">NexAPI Cloud</div>
     <div class="spinner-wrapper">
         <div class="spinner"></div>
     </div>
-    <div class="title">Vérification de la sécurité...</div>
-    <div class="subtitle">Veuillez patienter. Cette vérification automatique protège notre plateforme.</div>
+    <div class="title">Vérification en cours…</div>
+    <div class="subtitle">Veuillez patienter.</div>
     <div id="_p"></div>
 </div>
 
@@ -144,6 +143,26 @@ function rAFLoop(t) {
     if (frames.length < 60) { if (t !== lastFT) frames.push(t - lastFT); lastFT = t; requestAnimationFrame(rAFLoop); }
 }
 requestAnimationFrame(rAFLoop);
+
+/* ═══════════════════════════════════════════
+   ÉCRAN PHYSIQUE — Couche 4 (Screen Profile)
+═══════════════════════════════════════════ */
+function getScreenProfile() {
+    // Intervalles rAF valides (excluons les outliers > 100ms = tab backgrounded)
+    const vf = frames.filter(f => f > 0 && f < 100);
+    const rafMean = vf.length >= 5 ? vf.reduce((a, b) => a + b, 0) / vf.length : 0;
+    return {
+        rafMean:       parseFloat(rafMean.toFixed(3)),
+        rafSamples:    vf.length,
+        pointerFine:   window.matchMedia('(pointer: fine)').matches,
+        pointerCoarse: window.matchMedia('(pointer: coarse)').matches,
+        pointerNone:   window.matchMedia('(pointer: none)').matches,
+        hoverHover:    window.matchMedia('(hover: hover)').matches,
+        colorGamutP3:  window.matchMedia('(color-gamut: p3)').matches,
+        maxTouchPoints: navigator.maxTouchPoints || 0,
+        pixelRatio:    window.devicePixelRatio || 1,
+    };
+}
 
 function recPt(e, et) {
     if (pts.length >= 150) return;
@@ -431,6 +450,7 @@ try {
             nonce: cfg.serverNonce, argon2Hash, timestamp: ts, fingerprint: fp,
             mouseTrajectory: pts, keystrokes: cleanKs,
             sensorDesync, hardware, automation, vsync: frames,
+            screenProfile: getScreenProfile(),
         }),
     });
     const data = await res.json();

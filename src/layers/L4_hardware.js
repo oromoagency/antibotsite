@@ -33,17 +33,54 @@ const VDI_RENDERERS = ['llvmpipe', 'softpipe', 'mesa offscreen', 'microsoft basi
 const SOFTWARE_RENDERERS = [...HEADLESS_RENDERERS, ...VDI_RENDERERS];
 
 const { L4: _T } = require('../config/tuning');
-const HEADLESS_RENDERER_PENALTY = _T.headlessRenderer;
-const VDI_RENDERER_PENALTY      = _T.vdiRenderer;
-const ABSENCE_PENALTIES         = _T.absence;
-const ABSENCE_CAP               = _T.absence.cap;
-const SENSOR_DESYNC_PENALTY     = _T.sensorDesync;
-const INCOMPLETE_FP_PENALTY     = _T.incompleteFp;
-const WEBGPU_ABSENT_PENALTY     = _T.webgpuAbsent;
-const BATTERY_SPOOF_PENALTY     = _T.batterySpoof;
+const HEADLESS_RENDERER_PENALTY  = _T.headlessRenderer;
+const VDI_RENDERER_PENALTY       = _T.vdiRenderer;
+const ABSENCE_PENALTIES          = _T.absence;
+const ABSENCE_CAP                = _T.absence.cap;
+const SENSOR_DESYNC_PENALTY      = _T.sensorDesync;
+const INCOMPLETE_FP_PENALTY      = _T.incompleteFp;
+const WEBGPU_ABSENT_PENALTY      = _T.webgpuAbsent;
+const BATTERY_SPOOF_PENALTY      = _T.batterySpoof;
+const SCREEN_POINTER_NONE        = _T.screenPointerNone;
+const SCREEN_MOBILE_MISMATCH     = _T.screenMobileMismatch;
+
+// Vérifie les signaux liés à la présence d'un écran physique réel.
+// Ne pénalise PAS les navigateurs sans données (screenProfile absent = client ancien).
+const analyzeScreen = (screenProfile, fingerprint) => {
+    if (!screenProfile) return { score: 0, reasons: [] };
+    const reasons = [];
+    let score = 0;
+
+    const { pointerFine, pointerCoarse, pointerNone, maxTouchPoints, rafMean, rafSamples } = screenProfile;
+    const ua = (fingerprint && fingerprint.userAgent) ? String(fingerprint.userAgent) : '';
+    const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+
+    // Signal 1 : pointer:none = littéralement aucun dispositif de pointage.
+    // Quasi-impossible sur un vrai appareil humain (PC, mobile, tablette).
+    // Headless Linux sans X11 renvoie ce signal.
+    if (pointerNone === true && !pointerFine && !pointerCoarse) {
+        score += SCREEN_POINTER_NONE;
+        reasons.push('pointer:none — aucun dispositif de pointage physique (environnement headless)');
+    }
+
+    // Signal 2 : UA mobile + pointeur de précision = contradiction physique.
+    // Un vrai téléphone/tablette DOIT avoir pointer:coarse (doigt).
+    // Un bot qui simule un UA Android a pointer:fine (souris du serveur).
+    if (isMobileUA) {
+        if (pointerFine === true) {
+            score += SCREEN_MOBILE_MISMATCH;
+            reasons.push('UA mobile + pointer:fine (souris précise) — UA spoofé, écran physique absent');
+        } else if (maxTouchPoints === 0) {
+            score += SCREEN_MOBILE_MISMATCH;
+            reasons.push('UA mobile + maxTouchPoints=0 — impossible sur appareil tactile réel (UA spoofé)');
+        }
+    }
+
+    return { score, reasons };
+};
 
 // Retourne { score, reasons }
-const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, battery }) => {
+const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, battery, screenProfile }) => {
     let evidence = 0; // preuves fortes (non plafonnées)
     let absence = 0;  // signaux absents (plafonnés)
     const reasons = [];
@@ -115,11 +152,17 @@ const analyze = ({ webgl, canvas, audio, webgpu, sensorDesync, fingerprint, batt
         reasons.push(`Batterie spoofée (${Math.round(battery.level * 100)}% — impossible, spec W3C = 0.0-1.0)`);
     }
 
+    // --- Écran physique réel ---
+    const screen = analyzeScreen(screenProfile, fingerprint);
+    evidence += screen.score;
+    reasons.push(...screen.reasons);
+
     return { score: evidence + Math.max(absence, ABSENCE_CAP), reasons };
 };
 
 module.exports = {
     analyze,
+    analyzeScreen,
     SOFTWARE_RENDERERS,
     HEADLESS_RENDERERS,
     VDI_RENDERERS,

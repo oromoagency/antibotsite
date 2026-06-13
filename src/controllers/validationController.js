@@ -67,6 +67,7 @@ exports.verifyChallenge = async (req, res) => {
         sensorDesync,
         hardware, automation, vsync,
         mouseTrajectory, keystrokes,
+        screenProfile,
     } = req.body;
 
     // --- L3 : Proof of Work Argon2id & anti-rejeu (peut être fatal) ---
@@ -133,6 +134,7 @@ exports.verifyChallenge = async (req, res) => {
         webgpu: hardware ? hardware.webgpu : undefined,
         sensorDesync, fingerprint,
         battery: visitor ? visitor.battery : null,
+        screenProfile,
     });
 
     // --- L5 : Détection d'automatisation ---
