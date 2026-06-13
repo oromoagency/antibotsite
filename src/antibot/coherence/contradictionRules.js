@@ -275,35 +275,9 @@ const RULES = [
         evaluate: (session) => {
             const bioFacts = session.facts.filter(f => f.name === 'biometric_anomaly');
             if (bioFacts.length > 0) {
-                // Vérifier si l'anomalie est purement une absence d'interaction (qui est normale sur la page Gateway de 1 seconde)
-                // ou un manque de clic (-5).
-                let isRobotic = false;
-                for (const f of bioFacts) {
-                    if (f.value && f.value.reasons) {
-                        for (const reason of f.value.reasons) {
-                            // Si la raison mentionne une téléportation, un lissage, une injection, une ligne droite, etc.
-                            if (!reason.includes('Aucune interaction') && 
-                                !reason.includes('Aucune activité') && 
-                                !reason.includes('sans clic')) {
-                                isRobotic = true;
-                            }
-                        }
-                    }
-                }
-
-                if (!isRobotic) {
-                    // C'est juste une absence d'interaction (ex: l'humain attend sur la Gateway).
-                    // On ne lève pas de contradiction forte.
-                    return createContradiction(
-                        'biometric_absence',
-                        'Absence of biometric interaction (acceptable on fast Gateway)',
-                        'low', ['biometrics', 'intent'], 'human_interaction', bioFacts.map(f => f.id)
-                    );
-                }
-
                 return createContradiction(
                     'biometric_anomaly',
-                    'Mouse/Keyboard interaction is mathematically robotic',
+                    'Mouse/Keyboard interaction is mathematically robotic or absent',
                     'high', ['biometrics', 'intent'], 'human_interaction', bioFacts.map(f => f.id)
                 );
             }
